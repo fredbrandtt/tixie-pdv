@@ -491,7 +491,7 @@ export default function PDVPage() {
         </div>
       </Header>
       
-      <div className="container mx-auto p-4 sm:p-6 relative z-10">
+      <div className="container mx-auto py-6 px-4 sm:px-6 relative z-10 max-w-7xl">
         {/* Exibe mensagem se estiver em modo de emissão */}
         {isEmitting && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -515,9 +515,9 @@ export default function PDVPage() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-12 gap-6">
           {/* Formulário Principal */}
-          <div className="flex-1">
+          <div className="col-span-12 lg:col-span-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -543,7 +543,7 @@ export default function PDVPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-200">Evento</Label>
                         <Select value={eventoSelecionado} onValueChange={setEventoSelecionado}>
-                          <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
+                          <SelectTrigger className="h-12 bg-black/30 border-white/10 text-white">
                             <SelectValue placeholder="Selecione o evento" />
                           </SelectTrigger>
                           <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
@@ -568,7 +568,7 @@ export default function PDVPage() {
                           onValueChange={setTipoSelecionado}
                           disabled={loadingIngressos || !!errorIngressos}
                         >
-                          <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
+                          <SelectTrigger className="h-12 bg-black/30 border-white/10 text-white">
                             <SelectValue placeholder={
                               loadingIngressos 
                                 ? "Carregando ingressos..." 
@@ -612,7 +612,7 @@ export default function PDVPage() {
                             type="button"
                             variant="outline"
                             onClick={() => quantidade > 1 && setQuantidade(quantidade - 1)}
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                            className="bg-black/30 border-white/10 text-white hover:bg-white/10"
                           >
                             -
                           </Button>
@@ -621,7 +621,7 @@ export default function PDVPage() {
                             type="button"
                             variant="outline"
                             onClick={() => setQuantidade(quantidade + 1)}
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                            className="bg-black/30 border-white/10 text-white hover:bg-white/10"
                           >
                             +
                           </Button>
@@ -639,8 +639,11 @@ export default function PDVPage() {
                           onChange={(value) => setTelefone(value)}
                           inputProps={{
                             id: "telefone",
-                            required: true
+                            required: true,
+                            className: "!bg-black/30 !border-white/10 !text-white !h-12"
                           }}
+                          containerClass="!bg-transparent"
+                          dropdownClass="!bg-gray-900/90 !border-white/10"
                           enableSearch
                           searchPlaceholder="Buscar país..."
                           searchNotFound="País não encontrado"
@@ -658,7 +661,7 @@ export default function PDVPage() {
                             type="text"
                             value={cpf}
                             onChange={(e) => handleCpfChange(e.target.value)}
-                            className="h-14 bg-white/10 border-white/20 text-white"
+                            className="h-12 bg-black/30 border-white/10 text-white"
                             placeholder="000.000.000-00"
                             disabled={loadingCliente}
                           />
@@ -668,7 +671,7 @@ export default function PDVPage() {
                             size="icon"
                             onClick={handleRefreshBusca}
                             disabled={loadingCliente || !cpf}
-                            className="h-14 w-14 bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-50"
+                            className="h-12 w-12 bg-black/30 border-white/10 text-white hover:bg-white/10 disabled:opacity-50"
                           >
                             <RotateCw className={`h-5 w-5 ${loadingCliente ? 'animate-spin' : ''}`} />
                           </Button>
@@ -688,7 +691,7 @@ export default function PDVPage() {
                           type="text"
                           value={nome}
                           onChange={(e) => setNome(e.target.value)}
-                          className="h-14 bg-white/10 border-white/20 text-white"
+                          className="h-12 bg-black/30 border-white/10 text-white"
                           placeholder="Nome completo"
                           disabled={loadingCliente}
                         />
@@ -706,7 +709,7 @@ export default function PDVPage() {
                               setDataNascimento(valor);
                             }
                           }}
-                          className="h-14 bg-white/10 border-white/20 text-white"
+                          className="h-12 bg-black/30 border-white/10 text-white"
                           placeholder="DD/MM/AAAA"
                           maxLength={10}
                           disabled={loadingCliente}
@@ -720,14 +723,14 @@ export default function PDVPage() {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="h-14 bg-white/10 border-white/20 text-white"
+                          className="h-12 bg-black/30 border-white/10 text-white"
                           placeholder="exemplo@email.com"
                         />
                       </div>
 
                       {/* Tipo de Venda */}
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-black/30 rounded-lg border border-white/10">
                           <div className="space-y-1">
                             <h4 className="text-sm font-medium text-white">Tipo de Venda</h4>
                             <p className="text-sm text-gray-400">
@@ -753,7 +756,7 @@ export default function PDVPage() {
           </div>
 
           {/* Resumo do Pedido (Fixo) */}
-          <div className="w-full lg:w-[400px]">
+          <div className="col-span-12 lg:col-span-4">
             <div className="lg:sticky lg:top-[88px]">
               <motion.div
                 initial={{ opacity: 0 }}
@@ -771,9 +774,9 @@ export default function PDVPage() {
                     <span className="font-medium">{quantidade}</span>
                   </div>
                   <div className="border-t border-white/10 my-2" />
-                  <div className="flex justify-between text-lg font-semibold text-white">
-                    <span>Total:</span>
-                    <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span className="text-white">Total:</span>
+                    <span className="text-blue-400">
                       R$ {getTotal().toFixed(2)}
                     </span>
                   </div>
@@ -783,10 +786,10 @@ export default function PDVPage() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={isEmitting || !eventoSelecionado || !tipoSelecionado || !cpf || !nome || !telefone || !dataNascimento || (tipoVenda === "online" && !email)}
-                  className="w-full h-14 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300 shadow-xl shadow-purple-500/20 border border-white/10 mt-4"
+                  className="w-full h-12 mt-6 bg-indigo-600 hover:bg-indigo-700 text-white text-base font-medium transition-all duration-200 shadow-md"
                 >
                   {isEmitting ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                       <span>Processando...</span>
                     </div>
@@ -798,29 +801,6 @@ export default function PDVPage() {
             </div>
           </div>
         </div>
-
-        {/* Exibe mensagem se estiver em modo de emissão */}
-        {isEmitting && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <Card className="w-full max-w-md border-none">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center space-y-4">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  >
-                    <RotateCw className="h-10 w-10 text-blue-500" />
-                  </motion.div>
-                  <h2 className="text-xl font-semibold">Emitindo ingressos...</h2>
-                  <p className="text-center text-gray-500">
-                    Por favor, aguarde enquanto os ingressos estão sendo emitidos.
-                    Não feche ou atualize esta página.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   );
