@@ -630,27 +630,27 @@ export default function PDVPage() {
 
                       {/* Campo Telefone */}
                       <div className="space-y-2">
-                        <Label htmlFor="telefone" className="text-sm font-medium text-white">
-                          Telefone
-                        </Label>
-                        <PhoneInput
-                          country="br"
-                          value={telefone}
-                          onChange={(value) => setTelefone(value)}
-                          inputProps={{
-                            id: "telefone",
-                            required: true,
-                            className: "!bg-black/30 !border-white/10 !text-white !h-12"
-                          }}
-                          containerClass="!bg-transparent"
-                          dropdownClass="!bg-gray-900/90 !border-white/10"
-                          enableSearch
-                          searchPlaceholder="Buscar país..."
-                          searchNotFound="País não encontrado"
-                          preferredCountries={['br', 'us', 'pt']}
-                          disableCountryCode={false}
-                          countryCodeEditable={false}
-                        />
+                        <Label htmlFor="telefone" className="text-gray-200">Telefone</Label>
+                        <div className="relative rounded-md overflow-hidden border border-white/10">
+                          <PhoneInput
+                            country="br"
+                            value={telefone}
+                            onChange={(value) => setTelefone(value)}
+                            inputProps={{
+                              id: "telefone",
+                              required: true,
+                              className: "w-full !bg-black/30 !border-0 !text-white !h-12 !pl-12"
+                            }}
+                            containerClass="!bg-transparent"
+                            buttonClass="!bg-black/30 !border-0 !border-r !border-white/10"
+                            dropdownClass="!bg-gray-900/90 !border-white/10"
+                            enableSearch={false}
+                            disableSearchIcon={true}
+                            preferredCountries={['br']}
+                            disableCountryCode={false}
+                            countryCodeEditable={false}
+                          />
+                        </div>
                       </div>
 
                       {/* Campo CPF */}
