@@ -27,7 +27,6 @@ import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserEmpresaId, getCurrentUser } from '@/services/auth';
 import { supabase } from '@/lib/supabase';
-import { CompanyIdDebug } from '@/components/CompanyIdDebug';
 
 export default function PDVPage() {
   const router = useRouter();
@@ -1114,9 +1113,6 @@ export default function PDVPage() {
             </div>
           </div>
         </div>
-        
-        {/* Usar o componente de debug compartilhado */}
-        <CompanyIdDebug />
       </div>
     </div>
   );
