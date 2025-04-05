@@ -8,7 +8,8 @@ export async function POST(request: NextRequest) {
     // Obter os dados da requisição
     const requestData = await request.json();
     
-    console.log('[API] Proxy de ingressos recebeu requisição:', requestData);
+    // Usar o valor do companyId enviado pelo cliente
+    console.log('[API] Proxy de ingressos recebeu requisição. companyId:', requestData.companyId);
     
     // Validar os dados recebidos
     if (!requestData.eventId || !requestData.companyId) {

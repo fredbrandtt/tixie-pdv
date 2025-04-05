@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertCircle, RotateCw, LogOut, User } from "lucide-react";
@@ -25,6 +25,9 @@ import '@/styles/phone-input.css';
 import { useEmissaoStore } from "@/store/emissaoStore";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext'
+import { getUserEmpresaId, getCurrentUser } from '@/services/auth';
+import { supabase } from '@/lib/supabase';
+import { CompanyIdDebug } from '@/components/CompanyIdDebug';
 
 export default function PDVPage() {
   const router = useRouter();
@@ -52,6 +55,18 @@ export default function PDVPage() {
   const [email, setEmail] = useState("");
   const [phoneCountry, setPhoneCountry] = useState('br');
   const [submitting, setSubmitting] = useState(false);
+  const [companyId, setCompanyId] = useState<number | null>(null);
+  const [searchingCPF, setSearchingCPF] = useState(false);
+  const [clientFound, setClientFound] = useState(false);
+  
+  // Estado para controlar se a aplicação está inicializando
+  const [initializing, setInitializing] = useState(true);
+  
+  // Estado para controlar se estamos verificando o companyId
+  const [checkingCompanyId, setCheckingCompanyId] = useState(true);
+  
+  // Referência para o input de CPF
+  const cpfInputRef = useRef<HTMLInputElement>(null);
 
   // Reset submitting state on mount
   useEffect(() => {
@@ -59,72 +74,248 @@ export default function PDVPage() {
     setEmitting(false);
   }, [setEmitting]);
 
-  // Carrega os eventos ao montar o componente
+  // Limpeza forçada do localStorage no carregamento da página
   useEffect(() => {
+    // Função para forçar a limpeza do localStorage e obter o valor correto
+    const forcarAtualizacaoInicial = async () => {
+      try {
+        // Verificar se o usuário está autenticado
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session) {
+          return;
+        }
+        
+        // Obter tokens de autenticação antes de limpar
+        const accessToken = localStorage.getItem('sb-access-token');
+        const refreshToken = localStorage.getItem('sb-refresh-token');
+        const authStatus = localStorage.getItem('auth-status');
+        
+        // Remover especificamente o companyId e ultimoEventoSelecionado
+        localStorage.removeItem('userCompanyId');
+        localStorage.removeItem('ultimoEventoSelecionado');
+        console.log("[INIT] Cache do companyId e do evento removidos para forçar valores corretos");
+        
+        // Restaurar tokens de autenticação se necessário
+        if (accessToken) localStorage.setItem('sb-access-token', accessToken);
+        if (refreshToken) localStorage.setItem('sb-refresh-token', refreshToken);
+        if (authStatus) localStorage.setItem('auth-status', authStatus);
+        
+        // Resetar o estado de evento selecionado
+        setEventoSelecionado("");
+        
+        // Não precisamos obter o companyId aqui, pois o useEffect de inicialização já fará isso
+      } catch (error) {
+        console.error("[INIT] Erro ao limpar cache:", error);
+      }
+    };
+    
+    // Executar a limpeza apenas uma vez ao montar o componente
+    forcarAtualizacaoInicial();
+  }, []); // Array de dependências vazio para executar apenas uma vez
+
+  // Função para consultar o companyId no Supabase
+  const buscarCompanyIdDoSupabase = async (): Promise<number | null> => {
+    try {
+      // Verificar sessão de usuário
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Erro ao verificar sessão:", sessionError);
+        toast.error("Erro ao verificar sessão. Por favor, faça login novamente.");
+        router.push("/login");
+        return null;
+      }
+      
+      if (!sessionData.session) {
+        console.log("Sessão não encontrada, redirecionando para login");
+        router.push("/login");
+        return null;
+      }
+      
+      const userId = sessionData.session.user.id;
+      console.log("Usuário autenticado:", userId);
+      
+      // Buscar companyId diretamente da tabela users
+      const { data, error } = await supabase
+        .from('users')
+        .select('companyId')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error("Erro ao buscar companyId do usuário:", error);
+        toast.error("Erro ao identificar sua empresa. Tente novamente.");
+        return null;
+      }
+      
+      if (!data || data.companyId === undefined) {
+        toast.error("Sua conta não tem uma empresa associada.");
+        return null;
+      }
+      
+      console.log("CompanyId encontrado na tabela users:", data.companyId);
+      
+      // Retornar o ID da empresa
+      return data.companyId;
+    } catch (error) {
+      console.error("Erro ao buscar companyId:", error);
+      toast.error("Erro ao identificar sua empresa. Tente novamente.");
+      return null;
+    }
+  };
+
+  // Inicialização do companyId antes de qualquer coisa
+  useEffect(() => {
+    // Função imediata para carregar o companyId
+    const carregarCompanyId = async () => {
+      try {
+        setCheckingCompanyId(true);
+        
+        // Verificar se o usuário está autenticado
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session) {
+          console.log("Usuário não autenticado, redirecionando para login");
+          router.push("/login");
+          return;
+        }
+        
+        // Verificar se o localStorage já tem o companyId
+        const storedCompanyId = localStorage.getItem("userCompanyId");
+        
+        // Se já existir um companyId no localStorage, use-o para evitar consultas desnecessárias
+        if (storedCompanyId) {
+          console.log("Usando companyId do localStorage:", storedCompanyId);
+          setCompanyId(parseInt(storedCompanyId));
+          setCheckingCompanyId(false);
+          setInitializing(false);
+          return;
+        }
+        
+        // Caso contrário, consulte o companyId diretamente no Supabase
+        const idDaEmpresa = await buscarCompanyIdDoSupabase();
+        
+        if (idDaEmpresa) {
+          console.log("ID da empresa obtido do Supabase:", idDaEmpresa);
+          
+          // Atualizar o localStorage e o estado
+          localStorage.setItem("userCompanyId", idDaEmpresa.toString());
+          setCompanyId(idDaEmpresa);
+        } else {
+          console.log("Não foi possível obter o ID da empresa, redirecionando para login");
+          router.push("/login");
+          return;
+        }
+        
+        setCheckingCompanyId(false);
+        setInitializing(false);
+      } catch (error) {
+        console.error("Erro ao carregar companyId:", error);
+        router.push("/login");
+      }
+    };
+    
+    // Antes de iniciar, verificar se estamos na página PDV
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname.includes('/pdv')) {
+        // Só carregar o companyId se estivermos na página PDV
+        carregarCompanyId();
+      } else {
+        // Não estamos na página PDV, não precisamos inicializar
+        setCheckingCompanyId(false);
+        setInitializing(false);
+      }
+    }
+  }, [router]);
+
+  // Carregar eventos somente depois que o companyId estiver definido
+  useEffect(() => {
+    if (checkingCompanyId || !companyId) return;
+    
     const carregarEventos = async () => {
       try {
         setLoading(true);
         setError(null);
-        const eventosData = await buscarEventos(1);
+        console.log("Carregando eventos com companyId:", companyId);
+        const eventosData = await buscarEventos(companyId);
         setEventos(eventosData);
+        
+        // Pré-selecionar o primeiro evento automaticamente
+        if (eventosData && eventosData.length > 0) {
+          console.log("Selecionando automaticamente o primeiro evento:", eventosData[0].id);
+          setEventoSelecionado(eventosData[0].id);
+          // Salvar no localStorage
+          localStorage.setItem("ultimoEventoSelecionado", eventosData[0].id);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar eventos');
+        toast.error("Erro ao carregar eventos. Verifique sua conexão.");
       } finally {
         setLoading(false);
       }
     };
 
     carregarEventos();
-  }, []);
+  }, [companyId, checkingCompanyId]);
 
-  // Carrega os ingressos quando um evento é selecionado
+  // Carregar ingressos quando um evento for selecionado
   useEffect(() => {
+    if (companyId === null || !eventoSelecionado) return;
+    
     const carregarIngressos = async () => {
-      if (!eventoSelecionado) {
-        setTiposIngresso([]);
-        setTipoSelecionado("");
-        return;
-      }
-
       try {
         setLoadingIngressos(true);
         setErrorIngressos(null);
-        const ingressosData = await buscarIngressos(eventoSelecionado, 1);
+        
+        console.log(`Carregando ingressos para evento: ${eventoSelecionado}, companyId: ${companyId}`);
+        
+        const ingressosData = await buscarIngressos(eventoSelecionado, companyId);
         setTiposIngresso(ingressosData);
+        
+        // Selecionar automaticamente o primeiro ingresso se estiver disponível
+        if (ingressosData && ingressosData.length > 0) {
+          console.log("Selecionando automaticamente o primeiro ingresso:", ingressosData[0].id);
+          setTipoSelecionado(String(ingressosData[0].id));
+        } else {
+          // Limpar a seleção de ingresso se não houver opções
+          setTipoSelecionado("");
+        }
       } catch (err) {
-        setErrorIngressos(err instanceof Error ? err.message : 'Erro ao carregar ingressos');
-        setTiposIngresso([]);
+        console.error("Erro ao carregar ingressos:", err);
+        
+        // Se for erro relacionado ao evento não existir no companyId atual, apenas limpa e não mostra erro
+        if (err instanceof Error && (
+          err.message.includes('Não há ingressos disponíveis') || 
+          err.message.includes('não disponível')
+        )) {
+          console.log("Evento possivelmente inválido no contexto atual, resetando seleção");
+          setTipoSelecionado("");
+          setEventoSelecionado("");
+          // Também remove do localStorage
+          localStorage.removeItem("ultimoEventoSelecionado");
+        } else {
+          // Mostrar erro apenas para problemas reais, não para eventos indisponíveis
+          setErrorIngressos(err instanceof Error ? err.message : 'Erro ao carregar ingressos');
+          toast.error("Erro ao carregar ingressos para este evento");
+          setTipoSelecionado("");
+        }
       } finally {
         setLoadingIngressos(false);
       }
     };
-
+    
     carregarIngressos();
-  }, [eventoSelecionado]);
-
-  // Recupera o último evento selecionado
-  useEffect(() => {
-    const ultimoEvento = localStorage.getItem("ultimoEventoSelecionado");
-    if (ultimoEvento) {
-      setEventoSelecionado(ultimoEvento);
-    }
-  }, []);
-
-  // Salva o evento selecionado
-  useEffect(() => {
-    if (eventoSelecionado) {
-      localStorage.setItem("ultimoEventoSelecionado", eventoSelecionado);
-    }
-  }, [eventoSelecionado]);
+  }, [eventoSelecionado, companyId]);
 
   // Função para buscar cliente por CPF
   const buscarCliente = async (cpfValue: string) => {
-    if (cpfValue.length < 11) return; // Só busca se tiver 11 dígitos
+    if (cpfValue.length < 11 || companyId === null) return; // Só busca se tiver 11 dígitos e companyId disponível
 
     try {
       setLoadingCliente(true);
       setErrorCliente(null);
-      const clienteData = await buscarClientePorCpf(cpfValue, 1);
+      const clienteData = await buscarClientePorCpf(cpfValue, companyId);
       
       // Atualiza os campos com os dados do cliente
       if (clienteData.encontrado) {
@@ -250,8 +441,12 @@ export default function PDVPage() {
   };
 
   const handleSubmit = async () => {
-    // Se já está emitindo, não faz nada
-    if (isEmitting) {
+    // Se já está emitindo ou não tem companyId, não faz nada
+    if (isEmitting || companyId === null) {
+      if (companyId === null) {
+        toast.error("ID da empresa não disponível. Por favor, faça login novamente.");
+        router.push("/login");
+      }
       return;
     }
 
@@ -305,7 +500,7 @@ export default function PDVPage() {
 
       // Prepara os dados para emissão usando os novos nomes de campo
       const dadosEmissao = {
-        companyId: 1,
+        companyId: companyId,
         eventId: eventoSelecionado,
         ticketId: parseInt(tipoSelecionado),
         quantity: quantidade,
@@ -366,21 +561,24 @@ export default function PDVPage() {
 
   // Recupera os dados do formulário ao montar o componente
   useEffect(() => {
-    // Limpa todo o localStorage exceto o último evento selecionado
-    const ultimoEvento = localStorage.getItem("ultimoEventoSelecionado");
+    // Não recupera mais o último evento usado - forçamos sempre selecionar um novo
     
-    // Limpa todo o localStorage
-    localStorage.clear();
-
-    // Restaura apenas o último evento selecionado
-    if (ultimoEvento) {
-      localStorage.setItem("ultimoEventoSelecionado", ultimoEvento);
-      setEventoSelecionado(ultimoEvento);
-    } else {
-      setEventoSelecionado("");
-    }
-
+    // Limpa apenas as chaves relacionadas à emissão de ingressos
+    const keysToRemove = [
+      'dadosEmissao', 
+      'emissaoCompleta', 
+      'ingressoEmitido', 
+      'emissaoStatus', 
+      'inicioProcessamento',
+      'ultimoEventoSelecionado' // Adicionado para garantir que não use eventos antigos
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
     // Reseta todos os estados para o valor inicial
+    setEventoSelecionado("");
     setTipoSelecionado("");
     setQuantidade(1);
     setCpf("");
@@ -406,6 +604,75 @@ export default function PDVPage() {
       toast.error("Erro ao fazer logout");
     }
   };
+
+  // Função para forçar a atualização do companyId
+  const forcarAtualizacaoCompanyId = async () => {
+    try {
+      // Limpar o localStorage
+      localStorage.removeItem('userCompanyId');
+      console.log("Cache do companyId removido do localStorage");
+      
+      // Buscar novamente do Supabase
+      const idDaEmpresa = await buscarCompanyIdDoSupabase();
+      
+      if (idDaEmpresa) {
+        console.log("Novo ID da empresa obtido do Supabase:", idDaEmpresa);
+        
+        // Atualizar o localStorage e o estado
+        localStorage.setItem("userCompanyId", idDaEmpresa.toString());
+        setCompanyId(idDaEmpresa);
+        
+        // Forçar a recarga dos eventos
+        const eventosData = await buscarEventos(idDaEmpresa);
+        setEventos(eventosData);
+        
+        toast.success("CompanyID atualizado com sucesso!");
+      } else {
+        console.log("Não foi possível obter o ID da empresa");
+        toast.error("Não foi possível obter o ID da empresa");
+      }
+    } catch (error) {
+      console.error("Erro ao forçar atualização:", error);
+      toast.error("Erro ao atualizar o ID da empresa");
+    }
+  };
+
+  // Renderização condicional para mostrar tela de carregamento enquanto verifica o companyId
+  if (checkingCompanyId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 flex flex-col items-center justify-center text-white p-4">
+        <div className="bg-black/30 border border-white/10 backdrop-blur-lg rounded-lg p-8 max-w-md w-full flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+          <h1 className="text-2xl font-bold mb-2">Inicializando PDV</h1>
+          <p className="text-center text-gray-300 mb-2">
+            Consultando dados da sua empresa...
+          </p>
+          <p className="text-xs text-gray-400">Por favor, aguarde.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (companyId === null) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          backgroundImage: "url('/images/bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20" />
+        <div className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-8 shadow-2xl relative z-10">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-white">Identificando empresa...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -566,16 +833,10 @@ export default function PDVPage() {
                         <Select 
                           value={tipoSelecionado} 
                           onValueChange={setTipoSelecionado}
-                          disabled={loadingIngressos || !!errorIngressos}
+                          disabled={!eventoSelecionado || loadingIngressos}
                         >
                           <SelectTrigger className="h-12 bg-black/30 border-white/10 text-white">
-                            <SelectValue placeholder={
-                              loadingIngressos 
-                                ? "Carregando ingressos..." 
-                                : errorIngressos 
-                                  ? errorIngressos 
-                                  : "Selecione o tipo"
-                            } />
+                            <SelectValue placeholder={eventoSelecionado ? "Selecione o tipo de ingresso" : "Selecione um evento primeiro"} />
                           </SelectTrigger>
                           <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
                             {tiposIngresso.map((tipo) => (
@@ -584,23 +845,16 @@ export default function PDVPage() {
                                 value={tipo.id.toString()}
                                 className="hover:bg-white/10"
                               >
-                                <div className="flex flex-col">
-                                  <span>{tipo.nome} - R$ {tipo.preco.toFixed(2)}</span>
-                                  {tipo.descricao && (
-                                    <span className="text-sm text-gray-400">{tipo.descricao}</span>
-                                  )}
-                                  {tipo.bundle && (
-                                    <span className="text-sm text-emerald-400">
-                                      {tipo.bundle.quantidade}x ingressos
-                                    </span>
-                                  )}
-                                </div>
+                                {tipo.nome} - R$ {tipo.preco.toFixed(2)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {errorIngressos && (
-                          <span className="text-sm text-red-400">{errorIngressos}</span>
+                        {loadingIngressos && (
+                          <div className="flex items-center justify-center mt-2">
+                            <div className="w-4 h-4 border-2 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin"></div>
+                            <span className="ml-2 text-sm text-gray-400">Carregando ingressos...</span>
+                          </div>
                         )}
                       </div>
 
@@ -801,6 +1055,9 @@ export default function PDVPage() {
             </div>
           </div>
         </div>
+        
+        {/* Usar o componente de debug compartilhado */}
+        <CompanyIdDebug />
       </div>
     </div>
   );

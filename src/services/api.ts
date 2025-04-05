@@ -70,20 +70,39 @@ export interface TipoIngresso {
 
 export async function buscarEventos(companyId: number): Promise<Evento[]> {
   try {
+    // Verificar se o companyId fornecido é válido
+    if (!companyId || companyId <= 0) {
+      console.error("Erro: companyId inválido:", companyId);
+      throw new Error("ID da empresa inválido");
+    }
+    
+    // Garantir que estamos usando o valor mais atualizado do localStorage
+    const storedCompanyId = localStorage.getItem("userCompanyId");
+    const actualCompanyId = storedCompanyId ? parseInt(storedCompanyId) : companyId;
+    
+    // Log para identificar o valor utilizado
+    console.log("API buscarEventos - companyId enviado:", companyId);
+    console.log("API buscarEventos - companyId do localStorage:", actualCompanyId);
+    
     // Usar a rota API local em vez do webhook direto
     const response = await fetch('/api/eventos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
       },
-      body: JSON.stringify({ companyId }),
+      body: JSON.stringify({ companyId: actualCompanyId }),
+      cache: 'no-store',
     });
 
     if (!response.ok) {
+      console.error(`Erro HTTP: ${response.status} ao buscar eventos`);
       throw new Error(`Erro ao buscar eventos: ${response.status}`);
     }
 
     const data = await response.json() as EventoResponse;
+    console.log(`Eventos recebidos: ${data?.results?.length || 0} para companyId=${actualCompanyId}`);
     
     // Se não houver eventos
     if (!data || data.count === 0 || !data.results) {
@@ -110,20 +129,45 @@ export async function buscarEventos(companyId: number): Promise<Evento[]> {
 
 export async function buscarIngressos(eventId: string, companyId: number): Promise<TipoIngresso[]> {
   try {
+    // Verificar parâmetros
+    if (!eventId) {
+      console.error("Erro: eventId não fornecido");
+      throw new Error("ID do evento não fornecido");
+    }
+    
+    if (!companyId || companyId <= 0) {
+      console.error("Erro: companyId inválido:", companyId);
+      throw new Error("ID da empresa inválido");
+    }
+    
+    // Garantir que estamos usando o valor mais atualizado do localStorage
+    const storedCompanyId = localStorage.getItem("userCompanyId");
+    const actualCompanyId = storedCompanyId ? parseInt(storedCompanyId) : companyId;
+    
+    // Log para identificar o valor utilizado
+    console.log("API buscarIngressos - eventId:", eventId);
+    console.log("API buscarIngressos - companyId enviado:", companyId);
+    console.log("API buscarIngressos - companyId do localStorage:", actualCompanyId);
+    
     // Usar a rota API local em vez do webhook direto
     const response = await fetch('/api/ingressos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
       },
-      body: JSON.stringify({ eventId, companyId }),
+      body: JSON.stringify({ eventId, companyId: actualCompanyId }),
+      cache: 'no-store',
     });
 
     if (!response.ok) {
+      console.error(`Erro HTTP: ${response.status} ao buscar ingressos`);
       throw new Error(`Erro ao buscar ingressos: ${response.status}`);
     }
 
     const data = await response.json() as IngressoResponse;
+    console.log(`Ingressos ativos: ${data?.active}, dados disponíveis: ${!!data?.tickets}`);
     
     // Verifica se há dados e se está ativo
     if (!data || !data.active) {
@@ -134,6 +178,8 @@ export async function buscarIngressos(eventId: string, companyId: number): Promi
     if (!ingressosData || !ingressosData.results || ingressosData.results.length === 0) {
       throw new Error('Não há ingressos disponíveis para este evento');
     }
+
+    console.log(`Ingressos encontrados: ${ingressosData.results.length} para o evento ${eventId}`);
 
     // Mapeia os ingressos para o formato que a aplicação utiliza
     return ingressosData.results
@@ -176,6 +222,14 @@ export interface Cliente {
 
 export async function buscarClientePorCpf(cpf: string, companyId: number): Promise<Cliente> {
   try {
+    // Garantir que estamos usando o valor mais atualizado do localStorage
+    const storedCompanyId = localStorage.getItem("userCompanyId");
+    const actualCompanyId = storedCompanyId ? parseInt(storedCompanyId) : companyId;
+    
+    // Log para identificar o valor utilizado
+    console.log("API buscarClientePorCpf - companyId enviado:", companyId);
+    console.log("API buscarClientePorCpf - companyId do localStorage:", actualCompanyId);
+    
     // Remove caracteres não numéricos do CPF
     const cpfLimpo = cpf.replace(/\D/g, '');
 
@@ -184,8 +238,11 @@ export async function buscarClientePorCpf(cpf: string, companyId: number): Promi
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
       },
-      body: JSON.stringify({ cpf: cpfLimpo, companyId }),
+      body: JSON.stringify({ cpf: cpfLimpo, companyId: actualCompanyId }),
+      cache: 'no-store',
     });
 
     if (!response.ok) {
@@ -262,15 +319,24 @@ interface IngressoEmitido {
 
 export async function emitirIngressos(dados: EmissaoIngressoPayload): Promise<IngressoEmitido> {
   try {
-    console.log("Enviando dados para emissão:", dados);
+    // Garantir que estamos usando o valor mais atualizado do localStorage
+    const storedCompanyId = localStorage.getItem("userCompanyId");
+    if (storedCompanyId) {
+      dados.companyId = parseInt(storedCompanyId);
+    }
+    
+    console.log("Enviando dados para emissão com companyId:", dados.companyId);
 
     // Usar a rota API local em vez do webhook direto
     const response = await fetch('/api/emissao', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
       },
       body: JSON.stringify(dados),
+      cache: 'no-store',
     });
 
     if (!response.ok) {

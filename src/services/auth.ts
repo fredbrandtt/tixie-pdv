@@ -183,38 +183,75 @@ export async function getCurrentUser(): Promise<User | null> {
 
 /**
  * Obtém o ID da empresa associada ao usuário atual
- * @returns O ID da primeira empresa associada ao usuário ou null se não encontrada
+ * @returns O ID da empresa associada ao usuário ou null se não encontrada
  */
 export async function getUserEmpresaId(): Promise<number | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    console.log('[DEBUG] Iniciando getUserEmpresaId');
+    
+    // Primeiro verifica se o ID da empresa já está no localStorage
+    if (typeof window !== 'undefined') {
+      const cachedCompanyId = localStorage.getItem('userCompanyId');
+      if (cachedCompanyId) {
+        console.log('[DEBUG] Usando ID da empresa do localStorage:', cachedCompanyId);
+        return parseInt(cachedCompanyId);
+      }
+    }
+
+    // Se não encontrou no localStorage, busca do Supabase
+    console.log('[DEBUG] ID da empresa não encontrado no localStorage, buscando do Supabase...');
+    
+    // Verifica sessão atual
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    // Se não houver sessão, retorna null
+    if (!sessionData.session) {
+      console.error('[DEBUG] Sem sessão ativa ao buscar empresa');
+      return null;
+    }
+    
+    // Obtém o usuário da sessão atual com metadados
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.error('Usuário não autenticado ao buscar empresa');
+      console.error('[DEBUG] Usuário não autenticado ao buscar empresa');
       return null;
     }
 
-    // Buscar empresas associadas ao usuário
-    const { data: userEmpresas, error } = await supabase
-      .from('user_empresas')
-      .select('empresa_id')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    console.log('[DEBUG] Buscando companyId para o usuário:', user.id);
+
+    // Buscar o companyId diretamente da tabela users
+    const { data, error } = await supabase
+      .from('users')
+      .select('companyId')
+      .eq('id', user.id)
+      .single();
 
     if (error) {
-      console.error('Erro ao buscar empresas do usuário:', error);
+      console.error('[DEBUG] Erro ao buscar companyId do usuário:', error);
       return null;
     }
 
-    if (!userEmpresas || userEmpresas.length === 0) {
-      console.error('Usuário não possui empresas associadas');
+    console.log('[DEBUG] Dados retornados da consulta users:', data);
+
+    if (!data || data.companyId === undefined) {
+      console.error('[DEBUG] companyId não encontrado para o usuário');
       return null;
     }
 
-    // Retorna o ID da primeira empresa (a mais recente)
-    return userEmpresas[0].empresa_id;
+    const companyId = data.companyId;
+    console.log('[DEBUG] companyId encontrado:', companyId);
+    
+    // Salva no localStorage para futuras consultas
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userCompanyId', companyId.toString());
+      console.log('[DEBUG] Salvando no localStorage:', companyId.toString());
+    }
+    
+    // Retorna o ID da empresa
+    return companyId;
   } catch (error) {
-    console.error('Erro ao obter empresa do usuário:', error);
+    console.error('[DEBUG] Erro ao obter companyId do usuário:', error);
     return null;
   }
 } 

@@ -50,16 +50,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('Usuário não autenticado, limpando estado');
           setUser(null);
           setLoading(false);
+          localStorage.removeItem('userCompanyId');
           return;
         }
         
         console.log('Usuário está autenticado, buscando dados');
         const userData = await getCurrentUser();
+        
+        if (userData && userData.empresas && userData.empresas.length > 0) {
+          // Armazena o ID da empresa no localStorage para uso em toda a aplicação
+          const empresaId = userData.empresas[0].empresa_id;
+          console.log('ID da empresa do usuário encontrado no Supabase:', empresaId);
+          localStorage.setItem('userCompanyId', empresaId.toString());
+        } else {
+          console.log('Usuário não possui empresas associadas');
+          localStorage.removeItem('userCompanyId');
+        }
+        
         setUser(userData);
       } catch (err) {
         console.error('Erro ao buscar dados do usuário:', err);
         setError('Falha ao carregar dados do usuário');
         setUser(null);
+        localStorage.removeItem('userCompanyId');
       } finally {
         setLoading(false);
       }
@@ -93,11 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signOut();
       setUser(null);
       
-      // Limpar dados de autenticação no localStorage
+      // Limpar todos os dados de autenticação no localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sb-access-token');
         localStorage.removeItem('sb-refresh-token');
         localStorage.removeItem('auth-status');
+        localStorage.removeItem('userCompanyId'); // Remove o ID da empresa ao fazer logout
       }
       
       router.push('/login');

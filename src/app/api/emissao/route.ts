@@ -21,10 +21,11 @@ export async function POST(request: NextRequest) {
     // Obter os dados da requisição
     const requestData = await request.json();
     
-    console.log('[API] Proxy de emissão recebeu requisição:', JSON.stringify(requestData, null, 2));
+    // Usar o valor do companyId enviado pelo cliente
+    console.log('[API] Proxy de emissão recebeu requisição. companyId:', requestData.companyId);
     
     // Validar os dados recebidos
-    const requiredFields = ['eventId', 'ticketId', 'clientName', 'clientDocument'];
+    const requiredFields = ['eventId', 'ticketId', 'clientName', 'clientDocument', 'companyId'];
     const missingFields = requiredFields.filter(field => !requestData[field]);
     
     if (missingFields.length > 0) {

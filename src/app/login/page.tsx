@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,19 +24,60 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        setCheckingSession(true);
+        
+        // Limpar qualquer companyId existente
+        localStorage.removeItem("userCompanyId");
+        
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("Erro ao verificar sessão:", error);
+          setCheckingSession(false);
           return;
         }
         
         if (data.session) {
-          console.log("Sessão existente encontrada, redirecionando para PDV");
-          router.push("/pdv");
+          // Verifica se o usuário tem um companyId associado
+          const { data: userData } = await supabase.auth.getUser();
+          
+          if (userData?.user) {
+            // Buscar o companyId diretamente da tabela users
+            const { data: userInfo, error: userError } = await supabase
+              .from('users')
+              .select('companyId')
+              .eq('id', userData.user.id)
+              .single();
+              
+            if (userError) {
+              console.error("Erro ao verificar companyId do usuário:", userError);
+              setCheckingSession(false);
+              return;
+            }
+            
+            if (userInfo && userInfo.companyId !== undefined) {
+              // Salvar o companyId no localStorage
+              localStorage.setItem("userCompanyId", userInfo.companyId.toString());
+              console.log("Sessão: companyId obtido e salvo no localStorage:", userInfo.companyId);
+              
+              // Redirecionar para PDV
+              console.log("Sessão existente encontrada, redirecionando para PDV");
+              router.push("/pdv");
+            } else {
+              console.log("Usuário sem companyId definido");
+              toast.error("Usuário sem empresa associada");
+              await supabase.auth.signOut();
+              setCheckingSession(false);
+            }
+          } else {
+            setCheckingSession(false);
+          }
+        } else {
+          setCheckingSession(false);
         }
       } catch (err) {
         console.error("Erro ao verificar sessão:", err);
+        setCheckingSession(false);
       }
     };
     
@@ -44,43 +86,86 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setLoading(true);
     setError("");
     
     try {
-      console.log("Tentando login com:", email);
+      // Limpar o localStorage de qualquer companyId anterior
+      localStorage.removeItem("userCompanyId");
+      
       const data = await signIn(email, password);
       
-      if (data && data.session) {
-        console.log("Login bem-sucedido, sessão:", data.session.access_token.substring(0, 10) + "...");
-        toast.success("Login realizado com sucesso!");
-        
-        // Salva o token no localStorage de forma manual
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('sb-access-token', data.session.access_token);
-          localStorage.setItem('sb-refresh-token', data.session.refresh_token);
-          document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=31536000`;
-          document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=31536000`;
+      if (!data || !data.session) {
+        throw new Error("Falha ao obter sessão");
+      }
+      
+      // Verificar se o usuário está associado a uma empresa
+      const { data: userData } = await supabase.auth.getUser();
+          
+      if (userData?.user) {
+        // Buscar o companyId diretamente da tabela users
+        const { data: userInfo, error: userError } = await supabase
+          .from('users')
+          .select('companyId')
+          .eq('id', userData.user.id)
+          .single();
+          
+        if (userError) {
+          console.error("Erro ao verificar companyId do usuário:", userError);
+          throw new Error("Erro ao verificar companyId do usuário");
         }
         
-        // Aumento do timeout para garantir que tudo seja processado
-        setTimeout(() => {
-          router.push("/pdv");
-        }, 1500);
+        if (userInfo && userInfo.companyId !== undefined) {
+          // Salvar o companyId no localStorage
+          const companyId = userInfo.companyId;
+          localStorage.setItem("userCompanyId", companyId.toString());
+          console.log("Login: companyId salvo no localStorage:", companyId);
+          
+          // Mostrar mensagem de sucesso
+          toast.success("Login realizado com sucesso!");
+          
+          // Redirecionar para a página inicial
+          router.push('/pdv');
+        } else {
+          throw new Error("Usuário sem companyId definido");
+        }
       } else {
-        console.error("Login falhou - sem sessão retornada");
-        setError("Falha no login - sem sessão retornada");
-        toast.error("Falha no login. Credenciais inválidas.");
+        throw new Error("Dados do usuário não encontrados");
       }
-    } catch (error) {
-      console.error("Erro no login:", error);
-      const errorMessage = error instanceof Error ? error.message : "Falha no login";
-      setError(errorMessage);
-      toast.error(`Erro no login: ${errorMessage}`);
+    } catch (err) {
+      console.error('Erro no login:', err);
+      setError(err instanceof Error ? err.message : 'Erro inesperado no login');
+      toast.error(`Erro no login: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
+      
+      // Limpar qualquer sessão que possa ter sido criada
+      await supabase.auth.signOut();
     } finally {
       setLoading(false);
     }
   };
+
+  // Renderizar tela de carregamento enquanto verifica a sessão
+  if (checkingSession) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-900 to-black"
+        style={{
+          backgroundImage: "url('/images/bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20" />
+        <div className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-8 shadow-2xl relative z-10">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-white">Verificando sessão...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
