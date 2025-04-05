@@ -1,0 +1,155 @@
+.react-tel-input {
+  width: 100%;
+}
+
+.react-tel-input .form-control {
+  width: 100%;
+  height: 44px;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: white !important;
+  font-size: 16px !important;
+}
+
+.react-tel-input .selected-flag {
+  background: transparent !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.react-tel-input .country-list {
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  margin-top: 4px !important;
+  border-radius: 6px !important;
+}
+
+.react-tel-input .country-list .country {
+  color: white !important;
+  background: transparent !important;
+}
+
+.react-tel-input .country-list .country.highlight,
+.react-tel-input .country-list .country:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-tel-input .search-box {
+  background: #2a2a2a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  margin: 8px !important;
+  border-radius: 4px !important;
+}
+
+.react-tel-input .search-box::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Remove a barra branca */
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus,
+.react-tel-input .selected-flag.open,
+.react-tel-input .selected-flag::before,
+.react-tel-input .selected-flag::after,
+.react-tel-input .flag-dropdown.open::before,
+.react-tel-input .flag-dropdown::before,
+.react-tel-input .flag-dropdown::after {
+  border: none !important;
+  background: transparent !important;
+}
+
+.react-tel-input .country-name {
+  color: white !important;
+}
+
+.react-tel-input .dial-code {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.react-tel-input .flag-dropdown {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Ajusta o z-index do dropdown */
+.react-tel-input .country-list {
+  z-index: 50 !important;
+}
+
+.react-tel-input input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.react-tel-input.dark-theme {
+  background-color: transparent !important;
+}
+
+.phone-input-container {
+  width: 100%;
+}
+
+.phone-input-container .flag-dropdown {
+  background: transparent !important;
+  border: none !important;
+}
+
+.phone-input-container .selected-flag {
+  background: transparent !important;
+}
+
+.phone-input-container .country-list {
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  margin-top: 4px !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.phone-input-container .country-list .country {
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 10px !important;
+}
+
+.phone-input-container .country-list .country:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.phone-input-container .country-list .country.highlight {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.phone-input-container .search {
+  background: #2a2a2a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  padding: 8px 10px !important;
+  margin: 8px !important;
+  border-radius: 4px !important;
+}
+
+.phone-input-container .search::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.phone-input-container .dial-code {
+  color: #fff !important;
+}
+
+.phone-input-container .country-name {
+  color: #fff !important;
+  margin-left: 8px !important;
+}
+
+/* Esconde a barra branca do dropdown */
+.phone-input-container .selected-flag:focus::before,
+.phone-input-container .selected-flag:hover::before {
+  background: transparent !important;
+}
+
+/* Ajusta o z-index do dropdown para ficar acima de outros elementos */
+.phone-input-container .country-list {
+  z-index: 50 !important;
+} 
