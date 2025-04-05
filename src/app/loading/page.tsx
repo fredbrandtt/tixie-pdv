@@ -184,14 +184,38 @@ export default function LoadingPage() {
   // Função auxiliar para extrair o ID do PDF da URL
   const extractPdfId = (url: string): string | null => {
     try {
-      // Remove query parameters se houver
-      const baseUrl = url.split('?')[0];
+      if (!url) return null;
       
-      // Pega o último segmento da URL
+      // Verifica se é uma URL da pretix (que inclui "pretix" ou "armazemdaestrela" no domínio)
+      const isPretixUrl = url.includes('pretix') || url.includes('armazemdaestrela');
+      
+      if (isPretixUrl) {
+        // Para URLs da pretix, extraímos o ID do caminho (geralmente o ID da ordem)
+        const match = url.match(/\/orderpositions\/(\d+)\/download/);
+        if (match && match[1]) {
+          console.log("ID da ordem encontrado na URL:", match[1]);
+          return match[1];
+        }
+        
+        // Se o padrão acima não funcionar, tentar outro padrão comum em URLs da pretix
+        const secondMatch = url.match(/\/orders\/([^\/]+)\/download/);
+        if (secondMatch && secondMatch[1]) {
+          console.log("ID da ordem encontrado na URL (padrão alternativo):", secondMatch[1]);
+          return secondMatch[1];
+        }
+        
+        // Tentativa final: apenas extrair qualquer sequência de números que pareça um ID
+        const fallbackMatch = url.match(/\/(\d+)\/download/);
+        if (fallbackMatch && fallbackMatch[1]) {
+          console.log("ID numérico encontrado na URL:", fallbackMatch[1]);
+          return fallbackMatch[1];
+        }
+      }
+      
+      // Método original como fallback para outros tipos de URL
+      const baseUrl = url.split('?')[0];
       const segments = baseUrl.split('/');
       const lastSegment = segments[segments.length - 1];
-      
-      // Remove a extensão .pdf se houver
       const pdfId = lastSegment.replace(/\.pdf$/, '');
       
       return pdfId || null;
@@ -204,11 +228,43 @@ export default function LoadingPage() {
   // Função para verificar se o PDF está pronto
   const checkPdfAvailability = async (url: string): Promise<boolean> => {
     try {
+      if (!url) {
+        throw new Error("URL do PDF não fornecida");
+      }
+      
+      // Verifica se é uma URL para domínios da pretix ou armazemdaestrela
+      if (url.includes('pretix') || url.includes('armazemdaestrela')) {
+        // Para URLs da pretix, tentamos acessar diretamente o PDF
+        console.log("URL da pretix detectada, verificando diretamente:", url);
+        
+        try {
+          // Tenta fazer uma requisição HEAD para verificar se o PDF está disponível
+          const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-store',
+          });
+          
+          // Se o status for 200, o PDF está pronto
+          if (response.ok) {
+            console.log("PDF está pronto (via HEAD request)");
+            return true;
+          } else {
+            console.log("PDF não está pronto (status", response.status, ")");
+            return false;
+          }
+        } catch (fetchError) {
+          console.log("Erro ao verificar PDF via HEAD request:", fetchError);
+          // Se falhar, tenta o método original
+        }
+      }
+      
       // Extrai o ID do PDF da URL
       const pdfId = extractPdfId(url);
       
       if (!pdfId) {
-        throw new Error("ID do PDF não encontrado");
+        console.error("ID do PDF não encontrado na URL:", url);
+        // Se não conseguir extrair o ID, tentamos abrir diretamente
+        return true;
       }
 
       // Faz a requisição para o webhook de verificação do PDF
@@ -233,35 +289,66 @@ export default function LoadingPage() {
         return false;
       }
       
-      throw new Error(data.message || "Erro ao verificar PDF");
+      // Se o status for diferente, assumimos que o PDF está pronto
+      // para evitar bloqueios desnecessários
+      console.log("Status desconhecido do PDF, assumindo que está pronto:", data);
+      return true;
     } catch (error) {
       console.error("Erro ao verificar PDF:", error);
-      return false;
+      // Em caso de erro, assumimos que o PDF está pronto para permitir que o usuário tente abrir
+      return true;
     }
   };
 
   // Função para tentar baixar o PDF com retry
-  const tryDownloadPdf = async (url: string, maxRetries = 15, retryDelay = 2000) => {
+  const tryDownloadPdf = async (url: string, maxRetries = 20, retryDelay = 2000) => {
     setDownloadingPdf(true);
     
     try {
+      // Log da URL do PDF para depuração
+      console.log("Tentando baixar PDF da URL:", url);
+      
+      // Verifica se é uma URL direta para a pretix ou armazemdaestrela (URLs externas)
+      if (url.includes('pretix') || url.includes('armazemdaestrela')) {
+        console.log("URL externa detectada, abrindo diretamente");
+        // Para URLs externas, tentamos abrir diretamente sem verificação complexa
+        window.open(url, '_blank');
+        toast.success("PDF aberto em nova aba!");
+        return true;
+      }
+      
+      // Para outras URLs, usamos o processo de verificação
       let tentativas = 0;
       while (tentativas < maxRetries) {
-        const isReady = await checkPdfAvailability(url);
-        
-        if (isReady) {
-          // Abre o PDF em uma nova aba
-          window.open(url, '_blank');
-          return true;
+        try {
+          const isReady = await checkPdfAvailability(url);
+          
+          if (isReady) {
+            // Abre o PDF em uma nova aba
+            window.open(url, '_blank');
+            toast.success("PDF aberto em nova aba!");
+            return true;
+          }
+        } catch (checkError) {
+          console.error(`Erro na tentativa ${tentativas + 1}:`, checkError);
+          // Se falhar na verificação após algumas tentativas, tentar abrir diretamente
+          if (tentativas > 5) {
+            console.log("Falhas contínuas na verificação, tentando abrir diretamente");
+            window.open(url, '_blank');
+            toast.success("Tentando abrir PDF diretamente!");
+            return true;
+          }
         }
 
         // Se não estiver pronto e ainda tiver tentativas
         if (tentativas === 0) {
           toast.info("Aguarde, o PDF está sendo gerado...");
         } else if (tentativas === 5) {
-          toast.info("Ainda estamos gerando seu PDF, por favor aguarde...");
+          toast.info("Ainda estamos processando seu PDF, por favor aguarde...");
         } else if (tentativas === 10) {
           toast.info("O PDF está quase pronto...");
+        } else if (tentativas === 15) {
+          toast.info("Continuamos processando seu PDF, isso pode levar mais alguns instantes...");
         }
 
         // Espera antes da próxima tentativa
@@ -269,11 +356,23 @@ export default function LoadingPage() {
         tentativas++;
       }
       
-      throw new Error("Tempo limite excedido ao gerar o PDF");
+      // Se chegou aqui após todas as tentativas, vamos tentar abrir diretamente mesmo assim
+      console.log("Tempo limite excedido, tentando abrir diretamente");
+      window.open(url, '_blank');
+      toast.warning("O PDF pode não estar pronto, mas tentamos abrir mesmo assim.");
+      return true;
     } catch (error) {
-      console.error("Erro ao baixar PDF:", error);
-      toast.error("Erro ao gerar o PDF. Por favor, tente novamente em alguns instantes.");
-      return false;
+      console.error("Erro ao verificar PDF:", error);
+      
+      // Mesmo com erro, tentamos abrir o PDF diretamente
+      try {
+        window.open(url, '_blank');
+        toast.warning("Houve um erro na verificação, mas tentamos abrir o PDF diretamente.");
+        return true;
+      } catch (openError) {
+        toast.error("Não foi possível abrir o PDF. Por favor, tente novamente em alguns instantes.");
+        return false;
+      }
     } finally {
       setDownloadingPdf(false);
     }
@@ -291,9 +390,8 @@ export default function LoadingPage() {
     if (pdfUrl) {
       console.log("URL do PDF encontrada:", pdfUrl);
       
-      // Tenta baixar diretamente sem verificação
-      window.open(pdfUrl, '_blank');
-      toast.success("Abrindo PDF em nova aba...");
+      // Usa a função de verificação e retry em vez de abrir diretamente
+      tryDownloadPdf(pdfUrl);
     } else {
       console.log("Nenhum PDF encontrado nos downloads:", ingressoEmitido.downloads);
       toast.error("Nenhum PDF disponível para download");
@@ -301,26 +399,32 @@ export default function LoadingPage() {
   };
 
   const handleProximaVenda = () => {
-    // Guarda o último evento selecionado
+    // Guarda valores importantes que precisamos preservar
     const ultimoEvento = localStorage.getItem("ultimoEventoSelecionado");
+    const userCompanyId = localStorage.getItem("userCompanyId");
     
-    // Limpa todo o localStorage
-    localStorage.clear();
-    
-    // Restaura apenas o último evento selecionado
-    if (ultimoEvento) {
-      localStorage.setItem("ultimoEventoSelecionado", ultimoEvento);
-    }
-
-    // Garante que todas as flags de emissão sejam removidas
+    // Limpa apenas as flags relacionadas à emissão, em vez de limpar todo o localStorage
     localStorage.removeItem("emissaoCompleta");
     localStorage.removeItem("ingressoEmitido");
     localStorage.removeItem("dadosEmissao");
     localStorage.removeItem("tentativaEmissao");
+    localStorage.removeItem("emissaoStatus");
+    localStorage.removeItem("inicioProcessamento");
+    
+    // Certifica que o companyId continua no localStorage
+    if (userCompanyId) {
+      localStorage.setItem("userCompanyId", userCompanyId);
+    }
+    
+    // Também restaura o último evento selecionado
+    if (ultimoEvento) {
+      localStorage.setItem("ultimoEventoSelecionado", ultimoEvento);
+    }
     
     // Reseta o estado de emissão
     setEmitting(false);
     
+    // Redireciona para o PDV
     router.push("/pdv");
   };
 
@@ -409,7 +513,7 @@ export default function LoadingPage() {
                     {downloadingPdf ? (
                       <>
                         <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Gerando PDF...
+                        Verificando disponibilidade do PDF...
                       </>
                     ) : (
                       <>

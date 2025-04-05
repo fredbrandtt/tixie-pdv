@@ -101,6 +101,36 @@ export default function CompanyIdReloader() {
     }
   };
 
+  // Função para forçar a limpeza de todo o localStorage e redirecionar para o login
+  const forceRedirectToLogin = async () => {
+    try {
+      // Tentar fazer logout via API
+      await supabase.auth.signOut();
+      
+      // Limpar todo o localStorage
+      localStorage.clear();
+      
+      // Remover todos os cookies relacionados ao Supabase
+      document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      // Notificar o usuário
+      toast.success("Redirecionando para a página de login...");
+      
+      // Redirecionar para a página de login forçando uma nova sessão
+      setTimeout(() => {
+        // Usar uma URL que força a página a recarregar completamente
+        window.location.href = "/login?ts=" + new Date().getTime();
+      }, 1000);
+    } catch (error) {
+      console.error("Erro ao redirecionar para login:", error);
+      
+      // Mesmo com erro, tenta redirecionar
+      window.location.href = "/login?ts=" + new Date().getTime();
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -109,12 +139,21 @@ export default function CompanyIdReloader() {
         <h2 className="text-white text-xl font-semibold mb-4">Supabase: companyId não encontrado</h2>
         <p className="text-red-400 mb-6">É necessário buscar o ID da sua empresa antes de continuar.</p>
         
-        <button 
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          onClick={buscarCompanyId}
-        >
-          Buscar companyId e recarregar
-        </button>
+        <div className="flex flex-col gap-3">
+          <button 
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            onClick={buscarCompanyId}
+          >
+            Buscar companyId e recarregar
+          </button>
+          
+          <button 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            onClick={forceRedirectToLogin}
+          >
+            Ir para página de login
+          </button>
+        </div>
       </div>
     </div>
   );

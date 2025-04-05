@@ -15,6 +15,15 @@ export async function middleware(req: NextRequest) {
   
   // Lógica de redirecionamento
   if (path === '/login' && isAuthenticated) {
+    // Verifica se há um parâmetro de timestamp (ts) na URL, o que indica uma solicitação
+    // deliberada para acessar a página de login (geralmente após um logout forçado)
+    const tsParameter = req.nextUrl.searchParams.get('ts');
+    
+    if (tsParameter) {
+      console.log('[Middleware] Permitindo acesso ao login com parâmetro ts:', tsParameter);
+      return NextResponse.next();
+    }
+    
     // Usuário já autenticado tentando acessar login
     console.log('[Middleware] Usuário autenticado tentando acessar login, redirecionando para /pdv');
     return NextResponse.redirect(new URL('/pdv', req.url));
