@@ -409,8 +409,16 @@ export default function PDVPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
-        <div className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-8 shadow-2xl">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          backgroundImage: "url('/images/bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20" />
+        <div className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-8 shadow-2xl relative z-10">
           <div className="flex flex-col items-center space-y-4">
             <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-white">Carregando eventos...</p>
@@ -422,8 +430,16 @@ export default function PDVPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center p-4">
-        <div className="backdrop-blur-xl bg-black/30 border border-red-500/20 rounded-lg p-8 shadow-2xl max-w-md w-full">
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          backgroundImage: "url('/images/bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20" />
+        <div className="backdrop-blur-xl bg-black/30 border border-red-500/20 rounded-lg p-8 shadow-2xl max-w-md w-full relative z-10">
           <div className="flex items-start gap-3 text-red-400">
             <AlertCircle className="h-5 w-5 mt-0.5" />
             <div className="flex-1">
@@ -443,20 +459,30 @@ export default function PDVPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div 
+      className="min-h-screen"
+      style={{
+        backgroundImage: "url('/images/bg.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20 pointer-events-none" />
+      
       <Header>
         <div className="flex justify-between items-center w-full">
-          <h1 className="text-xl font-semibold">PDV - Venda de Ingressos</h1>
+          <h1 className="text-xl font-semibold text-white">PDV - Venda de Ingressos</h1>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-800 px-3 py-1.5 rounded-md">
-              <User size={18} className="text-gray-600 dark:text-gray-400" />
-              <span className="text-sm font-medium">{user?.nome || "Usuário"}</span>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-md border border-white/10">
+              <User size={18} className="text-gray-300" />
+              <span className="text-sm font-medium text-white">{user?.nome || "Usuário"}</span>
             </div>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleLogout}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-white/10 border-white/10 text-white hover:bg-white/20"
             >
               <LogOut size={16} />
               <span className="hidden sm:inline">Sair</span>
@@ -465,8 +491,31 @@ export default function PDVPage() {
         </div>
       </Header>
       
-      <div className="container mx-auto p-4 sm:p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="container mx-auto p-4 sm:p-6 relative z-10">
+        {/* Exibe mensagem se estiver em modo de emissão */}
+        {isEmitting && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <Card className="w-full max-w-md border-none">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  >
+                    <RotateCw className="h-10 w-10 text-blue-500" />
+                  </motion.div>
+                  <h2 className="text-xl font-semibold">Emitindo ingressos...</h2>
+                  <p className="text-center text-gray-500">
+                    Por favor, aguarde enquanto os ingressos estão sendo emitidos.
+                    Não feche ou atualize esta página.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           {/* Formulário Principal */}
           <div className="flex-1">
             <motion.div
