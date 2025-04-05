@@ -425,20 +425,91 @@ export default function LoadingPage() {
   const handleDownloadPDF = async () => {
     if (!ingressoEmitido || downloadingPdf) return;
 
-    console.log("Ingresso emitido completo:", ingressoEmitido); // Log do objeto completo
-    console.log("Downloads disponíveis:", ingressoEmitido.downloads); // Log dos downloads
+    console.log("Iniciando download do PDF via webhook n8n (Minio)");
+    setDownloadingPdf(true);
 
-    // Primeiro tenta baixar o PDF do pedido completo
-    const pdfUrl = ingressoEmitido.downloads?.find(d => d.output === "pdf")?.url;
-    
-    if (pdfUrl) {
+    try {
+      // Extrair o código do pedido (orderId) da resposta
+      const orderId = ingressoEmitido.code;
+      
+      if (!orderId) {
+        toast.error("Código do pedido não encontrado");
+        console.error("OrderID não encontrado no objeto de ingresso emitido:", ingressoEmitido);
+        return;
+      }
+
+      // Obter o companyId e eventId
+      const storedCompanyId = localStorage.getItem("userCompanyId");
+      const companyId = storedCompanyId ? parseInt(storedCompanyId) : null;
+      
+      // Obter os dados de emissão do localStorage para pegar o eventId
+      const dadosEmissaoJson = localStorage.getItem("dadosEmissao");
+      const dadosEmissao = dadosEmissaoJson ? JSON.parse(dadosEmissaoJson) : null;
+      const eventId = dadosEmissao?.eventId;
+      
+      if (!companyId || !eventId) {
+        toast.error("Dados do pedido incompletos");
+        console.error("Dados incompletos:", { companyId, eventId, orderId });
+        return;
+      }
+
+      // Fazer a requisição para o webhook do n8n
+      console.log(`Enviando solicitação para download de PDF: eventId=${eventId}, companyId=${companyId}, orderId=${orderId}`);
+      
+      const webhookUrl = "https://n8nwebhook.vcrma.com.br/webhook/394b8928-2458-496a-9ac2-e85ed4d4cd16";
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          eventId,
+          companyId,
+          orderId
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao baixar PDF: ${response.status} - ${errorText}`);
+      }
+
+      // A resposta agora é um JSON com a URL do PDF no Minio
+      const data = await response.json();
+      console.log("Resposta do webhook com URL para o PDF:", data);
+
+      // Verificar o formato da resposta
+      let pdfUrl = null;
+
+      // Caso 1: array com objeto que contém a URL
+      if (Array.isArray(data) && data.length > 0 && data[0].url) {
+        pdfUrl = data[0].url;
+      } 
+      // Caso 2: objeto com propriedade URL direta
+      else if (data.url) {
+        pdfUrl = data.url;
+      } 
+      // Caso 3: objeto aninhado data.data.url
+      else if (data.data && data.data.url) {
+        pdfUrl = data.data.url;
+      }
+
+      if (!pdfUrl) {
+        throw new Error("URL do PDF não encontrada na resposta");
+      }
+
       console.log("URL do PDF encontrada:", pdfUrl);
       
-      // Usa a função de verificação e retry em vez de abrir diretamente
-      tryDownloadPdf(pdfUrl);
-    } else {
-      console.log("Nenhum PDF encontrado nos downloads:", ingressoEmitido.downloads);
-      toast.error("Nenhum PDF disponível para download");
+      // Abrir a URL em uma nova aba
+      window.open(pdfUrl, '_blank');
+      toast.success("PDF aberto em nova aba!");
+
+    } catch (error) {
+      console.error("Erro ao baixar PDF:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao baixar o PDF");
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
