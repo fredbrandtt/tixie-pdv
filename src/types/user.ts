@@ -10,6 +10,8 @@ export interface User {
   email: string;
   nome: string;
   is_super_admin: boolean;
+  is_promoter?: boolean;
+  companyId?: number;
   empresas: UserEmpresa[];
   created_at: string;
 } 

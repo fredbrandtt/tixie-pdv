@@ -68,29 +68,28 @@ export default function CompanyIdReloader() {
         return;
       }
       
-      // Buscar empresa do usuário
-      const { data: userEmpresas, error } = await supabase
-        .from('user_empresas')
-        .select('empresa_id')
-        .eq('user_id', userData.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // Buscar companyId diretamente da tabela users
+      const { data: userProfile, error } = await supabase
+        .from('users')
+        .select('companyId')
+        .eq('id', userData.user.id)
+        .single();
         
       if (error) {
-        console.error("Erro ao buscar empresa:", error);
+        console.error("Erro ao buscar companyId:", error);
         toast.error("Erro ao buscar sua empresa. Tente novamente.");
         return;
       }
       
-      if (!userEmpresas || userEmpresas.length === 0) {
+      if (!userProfile || userProfile.companyId === undefined) {
         toast.error("Nenhuma empresa encontrada para seu usuário.");
         return;
       }
       
       // Definir o companyId no localStorage
-      const empresaId = userEmpresas[0].empresa_id;
-      localStorage.setItem("userCompanyId", empresaId.toString());
-      setCompanyId(empresaId.toString());
+      const companyId = userProfile.companyId;
+      localStorage.setItem("userCompanyId", companyId.toString());
+      setCompanyId(companyId.toString());
       toast.success("ID da empresa configurado com sucesso!");
       
       // Recarregar a página
@@ -101,37 +100,16 @@ export default function CompanyIdReloader() {
     }
   };
 
-  // Função para forçar a limpeza de todo o localStorage e redirecionar para o login
-  const forceRedirectToLogin = async () => {
-    try {
-      // Tentar fazer logout via API
-      await supabase.auth.signOut();
-      
-      // Limpar todo o localStorage
-      localStorage.clear();
-      
-      // Remover todos os cookies relacionados ao Supabase
-      document.cookie.split(";").forEach(function(c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
-      
-      // Notificar o usuário
-      toast.success("Redirecionando para a página de login...");
-      
-      // Redirecionar para a página de login forçando uma nova sessão
-      setTimeout(() => {
-        // Usar uma URL que força a página a recarregar completamente
-        window.location.href = "/login?ts=" + new Date().getTime();
-      }, 1000);
-    } catch (error) {
-      console.error("Erro ao redirecionar para login:", error);
-      
-      // Mesmo com erro, tenta redirecionar
-      window.location.href = "/login?ts=" + new Date().getTime();
-    }
+  // Função para forçar o redirecionamento para a página de login
+  const forceRedirectToLogin = () => {
+    localStorage.removeItem("userCompanyId");
+    window.location.href = "/login";
   };
 
-  if (!visible) return null;
+  // Só mostrar o modal se for necessário
+  if (!visible) {
+    return null;
+  }
 
   return (
     <div className="fixed top-0 left-0 w-full h-screen bg-black/70 flex items-center justify-center z-50">

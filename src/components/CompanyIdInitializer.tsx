@@ -61,31 +61,29 @@ export function CompanyIdInitializer() {
           return; // Se já existe, não precisamos consultar o Supabase
         }
 
-        // Busca as empresas do usuário forçando uma consulta nova
-        const { data: userEmpresas, error } = await supabase
-          .from('user_empresas')
-          .select('empresa_id')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // Buscar o companyId diretamente da tabela users
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('companyId')
+          .eq('id', user.id)
+          .single();
 
         if (error) {
-          console.error("CompanyIdInitializer: Erro ao buscar empresas do usuário:", error);
+          console.error("CompanyIdInitializer: Erro ao buscar companyId do usuário:", error);
           if (isProtectedPage) {
             toast.error("Erro ao carregar empresa. Faça login novamente.");
           }
           return;
         }
 
-        if (userEmpresas) {
-          const empresaId = userEmpresas.empresa_id;
-          console.log("CompanyIdInitializer: ID da empresa no Supabase:", empresaId);
+        if (userData && userData.companyId !== undefined) {
+          const companyId = userData.companyId;
+          console.log("CompanyIdInitializer: ID da empresa no Supabase:", companyId);
           
           // Salva no localStorage o ID real da empresa do usuário
-          localStorage.setItem("userCompanyId", empresaId.toString());
+          localStorage.setItem("userCompanyId", companyId.toString());
         } else {
-          console.log("CompanyIdInitializer: Usuário não possui empresas associadas");
+          console.log("CompanyIdInitializer: Usuário não possui empresa associada");
           if (isProtectedPage) {
             toast.error("Sua conta não está associada a nenhuma empresa.");
           }

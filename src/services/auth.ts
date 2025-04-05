@@ -163,17 +163,21 @@ export async function getCurrentUser(): Promise<User | null> {
 
     if (userError) throw userError
 
-    // Buscar empresas associadas
-    const { data: empresas, error: empresasError } = await supabase
-      .from('user_empresas')
-      .select('*')
-      .eq('user_id', user.id)
-
-    if (empresasError) throw empresasError
+    // Não vamos mais buscar da tabela user_empresas
+    // Se o companyId estiver definido no usuário, vamos usá-lo para criar um objeto de "empresa"
+    const empresas: UserEmpresa[] = [];
+    if (userData.companyId) {
+      empresas.push({
+        id: 0, // ID não importa tanto aqui
+        user_id: user.id,
+        empresa_id: userData.companyId,
+        created_at: userData.created_at
+      });
+    }
 
     return {
       ...userData,
-      empresas: empresas as UserEmpresa[]
+      empresas: empresas
     }
   } catch (error) {
     console.error('Erro ao buscar usuário:', error)

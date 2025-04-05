@@ -57,17 +57,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('Usuário está autenticado, buscando dados');
         const userData = await getCurrentUser();
         
-        if (userData && userData.empresas && userData.empresas.length > 0) {
-          // Armazena o ID da empresa no localStorage para uso em toda a aplicação
-          const empresaId = userData.empresas[0].empresa_id;
-          console.log('ID da empresa do usuário encontrado no Supabase:', empresaId);
-          localStorage.setItem('userCompanyId', empresaId.toString());
+        if (userData) {
+          // Armazenar companyId no localStorage direto da propriedade do usuário
+          if (userData.companyId) {
+            console.log('ID da empresa do usuário encontrado:', userData.companyId);
+            localStorage.setItem('userCompanyId', userData.companyId.toString());
+          } else {
+            console.log('Usuário não possui empresa associada (companyId não definido)');
+            localStorage.removeItem('userCompanyId');
+          }
+          
+          setUser(userData);
         } else {
-          console.log('Usuário não possui empresas associadas');
+          console.log('Dados do usuário não encontrados');
           localStorage.removeItem('userCompanyId');
         }
-        
-        setUser(userData);
       } catch (err) {
         console.error('Erro ao buscar dados do usuário:', err);
         setError('Falha ao carregar dados do usuário');
