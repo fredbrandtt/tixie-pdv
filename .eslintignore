@@ -1,0 +1,6 @@
+# Ignorar todos os arquivos
+*
+**/*
+
+# Mas manter configurações específicas
+!.eslintrc.js 

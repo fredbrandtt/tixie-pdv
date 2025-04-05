@@ -40,7 +40,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Define variáveis de ambiente para produção
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # Adiciona usuário não-root para execução da aplicação
 RUN addgroup --system --gid 1001 nodejs
@@ -74,8 +74,8 @@ ENV NODE_OPTIONS="--max-old-space-size=2048"
 EXPOSE 3000
 
 # Define a variável de ambiente para o host
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Verifica integridade
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD curl -f http://localhost:3000/ || exit 1
