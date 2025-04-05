@@ -38,6 +38,7 @@ export default function LoadingPage() {
   const [ingressoEmitido, setIngressoEmitido] = useState<IngressoEmitido | null>(null);
   const emissaoRealizadaRef = useRef(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const ultimaUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const processarEmissao = async () => {
@@ -62,6 +63,16 @@ export default function LoadingPage() {
 
         const dadosEmissao = JSON.parse(dadosEmissaoString);
         console.log("[Loading] Dados de emissão recuperados:", dadosEmissao);
+        
+        // Verificação adicional: garantir que a companyId corresponda à atual
+        const storedCompanyId = localStorage.getItem("userCompanyId");
+        if (storedCompanyId && dadosEmissao.companyId !== parseInt(storedCompanyId)) {
+          console.error("[Loading] Inconsistência de dados detectada:", {
+            dadosCompanyId: dadosEmissao.companyId,
+            storedCompanyId: parseInt(storedCompanyId)
+          });
+          throw new Error("O ID da empresa mudou. Por favor, volte ao PDV e inicie uma nova emissão.");
+        }
         
         // Verifica o estado da emissão atual
         const emissaoStatus = localStorage.getItem("emissaoStatus");
@@ -308,12 +319,41 @@ export default function LoadingPage() {
       // Log da URL do PDF para depuração
       console.log("Tentando baixar PDF da URL:", url);
       
+      // Verifica se é a mesma URL que foi aberta anteriormente
+      const isRetry = url === ultimaUrlRef.current;
+      
       // Verifica se é uma URL direta para a pretix ou armazemdaestrela (URLs externas)
       if (url.includes('pretix') || url.includes('armazemdaestrela')) {
         console.log("URL externa detectada, abrindo diretamente");
-        // Para URLs externas, tentamos abrir diretamente sem verificação complexa
-        window.open(url, '_blank');
-        toast.success("PDF aberto em nova aba!");
+        
+        // Se for uma retry com a mesma URL, força download em vez de apenas abrir
+        if (isRetry) {
+          console.log("Tentando forçar download direto ao invés de apenas abrir em nova aba");
+          
+          try {
+            // Cria um link temporário para fazer download direto
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ingresso-${Date.now()}.pdf`; // Nome do arquivo com timestamp
+            link.target = '_blank'; 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("Download do PDF iniciado!");
+          } catch (downloadError) {
+            console.error("Erro ao tentar baixar diretamente:", downloadError);
+            // Fallback para abrir em nova aba
+            window.open(url, '_blank');
+            toast.success("PDF aberto em nova aba!");
+          }
+        } else {
+          // Na primeira tentativa, apenas abrimos em nova aba
+          window.open(url, '_blank');
+          toast.success("PDF aberto em nova aba!");
+        }
+        
+        // Guarda a URL aberta para referência futura
+        ultimaUrlRef.current = url;
         return true;
       }
       
@@ -327,6 +367,7 @@ export default function LoadingPage() {
             // Abre o PDF em uma nova aba
             window.open(url, '_blank');
             toast.success("PDF aberto em nova aba!");
+            ultimaUrlRef.current = url;
             return true;
           }
         } catch (checkError) {
@@ -336,6 +377,7 @@ export default function LoadingPage() {
             console.log("Falhas contínuas na verificação, tentando abrir diretamente");
             window.open(url, '_blank');
             toast.success("Tentando abrir PDF diretamente!");
+            ultimaUrlRef.current = url;
             return true;
           }
         }
@@ -360,6 +402,7 @@ export default function LoadingPage() {
       console.log("Tempo limite excedido, tentando abrir diretamente");
       window.open(url, '_blank');
       toast.warning("O PDF pode não estar pronto, mas tentamos abrir mesmo assim.");
+      ultimaUrlRef.current = url;
       return true;
     } catch (error) {
       console.error("Erro ao verificar PDF:", error);
@@ -368,6 +411,7 @@ export default function LoadingPage() {
       try {
         window.open(url, '_blank');
         toast.warning("Houve um erro na verificação, mas tentamos abrir o PDF diretamente.");
+        ultimaUrlRef.current = url;
         return true;
       } catch (openError) {
         toast.error("Não foi possível abrir o PDF. Por favor, tente novamente em alguns instantes.");
@@ -423,6 +467,9 @@ export default function LoadingPage() {
     
     // Reseta o estado de emissão
     setEmitting(false);
+    
+    // Reseta a última URL do PDF
+    ultimaUrlRef.current = null;
     
     // Redireciona para o PDV
     router.push("/pdv");

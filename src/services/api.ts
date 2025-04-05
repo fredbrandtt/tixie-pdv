@@ -322,7 +322,21 @@ export async function emitirIngressos(dados: EmissaoIngressoPayload): Promise<In
     // Garantir que estamos usando o valor mais atualizado do localStorage
     const storedCompanyId = localStorage.getItem("userCompanyId");
     if (storedCompanyId) {
-      dados.companyId = parseInt(storedCompanyId);
+      const novoCompanyId = parseInt(storedCompanyId);
+      
+      // Verificar se a companyId mudou desde que os dados foram preparados
+      if (novoCompanyId !== dados.companyId) {
+        console.error("CompanyId difere do valor armazenado:", {
+          dadosCompanyId: dados.companyId,
+          storedCompanyId: novoCompanyId
+        });
+        
+        throw new Error(
+          "O ID da empresa foi atualizado. Por favor, volte à tela anterior e tente novamente para usar os dados corretos."
+        );
+      }
+      
+      dados.companyId = novoCompanyId;
     }
     
     console.log("Enviando dados para emissão com companyId:", dados.companyId);

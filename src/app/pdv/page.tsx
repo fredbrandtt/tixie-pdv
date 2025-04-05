@@ -87,25 +87,54 @@ export default function PDVPage() {
           return;
         }
         
-        // Obter tokens de autenticação antes de limpar
+        // Salvar tokens de autenticação antes de limpar
         const accessToken = localStorage.getItem('sb-access-token');
         const refreshToken = localStorage.getItem('sb-refresh-token');
         const authStatus = localStorage.getItem('auth-status');
         
-        // Remover especificamente o companyId e ultimoEventoSelecionado
-        localStorage.removeItem('userCompanyId');
-        localStorage.removeItem('ultimoEventoSelecionado');
-        console.log("[INIT] Cache do companyId e do evento removidos para forçar valores corretos");
+        // Lista de chaves para preservar (as que não queremos limpar)
+        const keysToPreserve = [
+          'sb-access-token', 
+          'sb-refresh-token', 
+          'auth-status'
+        ];
         
-        // Restaurar tokens de autenticação se necessário
+        // Obter o ID atual da empresa (vamos buscar um novo depois)
+        const oldCompanyId = localStorage.getItem('userCompanyId');
+        console.log("[INIT] Company ID atual:", oldCompanyId);
+        
+        // Limpar todos os dados de emissão e dados relacionados
+        console.log("[INIT] Limpando completamente todos os dados de emissão anterior...");
+        
+        // Remover dados específicos
+        const keysToRemove = [
+          'userCompanyId',
+          'ultimoEventoSelecionado',
+          'emissaoCompleta',
+          'ingressoEmitido',
+          'dadosEmissao',
+          'tentativaEmissao',
+          'emissaoStatus',
+          'inicioProcessamento'
+        ];
+        
+        keysToRemove.forEach(key => {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+            console.log(`[INIT] Removido: ${key}`);
+          }
+        });
+        
+        // Restaurar tokens de autenticação
         if (accessToken) localStorage.setItem('sb-access-token', accessToken);
         if (refreshToken) localStorage.setItem('sb-refresh-token', refreshToken);
         if (authStatus) localStorage.setItem('auth-status', authStatus);
         
         // Resetar o estado de evento selecionado
         setEventoSelecionado("");
+        setTipoSelecionado("");
         
-        // Não precisamos obter o companyId aqui, pois o useEffect de inicialização já fará isso
+        console.log("[INIT] Dados limpos, aguardando inicialização com novos valores");
       } catch (error) {
         console.error("[INIT] Erro ao limpar cache:", error);
       }
@@ -113,7 +142,7 @@ export default function PDVPage() {
     
     // Executar a limpeza apenas uma vez ao montar o componente
     forcarAtualizacaoInicial();
-  }, []); // Array de dependências vazio para executar apenas uma vez
+  }, []);
 
   // Função para consultar o companyId no Supabase
   const buscarCompanyIdDoSupabase = async (): Promise<number | null> => {
@@ -654,6 +683,9 @@ export default function PDVPage() {
   // Função para forçar a atualização do companyId
   const forcarAtualizacaoCompanyId = async () => {
     try {
+      // Avisa o usuário que a página será recarregada
+      toast.info("Atualizando ID da empresa, a página será recarregada...");
+      
       // Limpar o localStorage
       localStorage.removeItem('userCompanyId');
       console.log("Cache do companyId removido do localStorage");
@@ -668,11 +700,30 @@ export default function PDVPage() {
         localStorage.setItem("userCompanyId", idDaEmpresa.toString());
         setCompanyId(idDaEmpresa);
         
-        // Forçar a recarga dos eventos
-        const eventosData = await buscarEventos(idDaEmpresa);
-        setEventos(eventosData);
+        // Limpar todos os dados relacionados à emissão anterior
+        const keysToRemove = [
+          'ultimoEventoSelecionado',
+          'emissaoCompleta',
+          'ingressoEmitido',
+          'dadosEmissao',
+          'tentativaEmissao',
+          'emissaoStatus',
+          'inicioProcessamento'
+        ];
         
-        toast.success("CompanyID atualizado com sucesso!");
+        keysToRemove.forEach(key => {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Recarregar a página para limpar todos os estados
+        toast.success("CompanyID atualizado! Recarregando página...");
+        
+        // Pequeno atraso para mostrar a mensagem antes de recarregar
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         console.log("Não foi possível obter o ID da empresa");
         toast.error("Não foi possível obter o ID da empresa");
