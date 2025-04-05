@@ -58,6 +58,8 @@ export default function PDVPage() {
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [searchingCPF, setSearchingCPF] = useState(false);
   const [clientFound, setClientFound] = useState(false);
+  // Estado para controlar se a empresa é promotora
+  const [isPromoter, setIsPromoter] = useState(false);
   
   // Estado para controlar se a aplicação está inicializando
   const [initializing, setInitializing] = useState(true);
@@ -136,10 +138,10 @@ export default function PDVPage() {
       const userId = sessionData.session.user.id;
       console.log("Usuário autenticado:", userId);
       
-      // Buscar companyId diretamente da tabela users
+      // Buscar companyId e is_promoter da tabela users
       const { data, error } = await supabase
         .from('users')
-        .select('companyId')
+        .select('companyId, is_promoter')
         .eq('id', userId)
         .single();
         
@@ -155,6 +157,10 @@ export default function PDVPage() {
       }
       
       console.log("CompanyId encontrado na tabela users:", data.companyId);
+      console.log("Is_promoter encontrado na tabela users:", data.is_promoter);
+      
+      // Atualizar o estado is_promoter
+      setIsPromoter(data.is_promoter === true);
       
       // Retornar o ID da empresa
       return data.companyId;
@@ -271,12 +277,25 @@ export default function PDVPage() {
         console.log(`Carregando ingressos para evento: ${eventoSelecionado}, companyId: ${companyId}`);
         
         const ingressosData = await buscarIngressos(eventoSelecionado, companyId);
-        setTiposIngresso(ingressosData);
+        
+        // Filtrar ingressos com base no flag isPromoter
+        let ingressosFiltrados = ingressosData;
+        if (isPromoter) {
+          // Se for promotor, mostrar apenas ingressos gratuitos
+          console.log("Modo promotor: filtrando apenas ingressos gratuitos");
+          ingressosFiltrados = ingressosData.filter(ingresso => ingresso.preco === 0);
+        } else {
+          // Se não for promotor, mostrar apenas ingressos pagos (preço > 0)
+          console.log("Modo PDV normal: filtrando apenas ingressos pagos");
+          ingressosFiltrados = ingressosData.filter(ingresso => ingresso.preco > 0);
+        }
+        
+        setTiposIngresso(ingressosFiltrados);
         
         // Selecionar automaticamente o primeiro ingresso se estiver disponível
-        if (ingressosData && ingressosData.length > 0) {
-          console.log("Selecionando automaticamente o primeiro ingresso:", ingressosData[0].id);
-          setTipoSelecionado(String(ingressosData[0].id));
+        if (ingressosFiltrados && ingressosFiltrados.length > 0) {
+          console.log("Selecionando automaticamente o primeiro ingresso:", ingressosFiltrados[0].id);
+          setTipoSelecionado(String(ingressosFiltrados[0].id));
         } else {
           // Limpar a seleção de ingresso se não houver opções
           setTipoSelecionado("");
@@ -306,7 +325,7 @@ export default function PDVPage() {
     };
     
     carregarIngressos();
-  }, [eventoSelecionado, companyId]);
+  }, [eventoSelecionado, companyId, isPromoter]);
 
   // Função para buscar cliente por CPF
   const buscarCliente = async (cpfValue: string) => {
@@ -462,30 +481,58 @@ export default function PDVPage() {
         return;
       }
 
-      if (!cpf || !validarCPF(cpf)) {
-        toast.error("CPF inválido");
-        return;
+      // Validações específicas baseadas no modo promotor ou normal
+      if (isPromoter) {
+        // No modo promotor, apenas o nome é obrigatório
+        if (!nome) {
+          toast.error("O nome é obrigatório");
+          return;
+        }
+      } else {
+        // No modo normal, todas as validações padrão
+        if (!cpf || !validarCPF(cpf)) {
+          toast.error("CPF inválido");
+          return;
+        }
+
+        if (!nome || !telefone || !dataNascimento) {
+          toast.error("Preencha todos os campos obrigatórios");
+          return;
+        }
+
+        if (!validarDataNascimento(dataNascimento)) {
+          toast.error("Data de nascimento inválida. Use o formato DD/MM/AAAA");
+          return;
+        }
+
+        // Se o tipo de venda for online, email é obrigatório
+        if (tipoVenda === "online" && !email) {
+          toast.error("Email é obrigatório para vendas online");
+          return;
+        }
       }
 
-      if (!nome || !telefone || !dataNascimento) {
-        toast.error("Preencha todos os campos obrigatórios");
-        return;
+      // Valores para modo promotor
+      let clientPhone = telefone.replace(/\D/g, '');
+      let clientCpf = cpf.replace(/\D/g, '');
+      let clientEmail = email || undefined;
+      let clientBirthDate = '';
+      
+      if (isPromoter) {
+        // Use dados dummy para promotores
+        const timestamp = Date.now();
+        clientPhone = '9999999999999';
+        clientCpf = '99999999999';
+        clientEmail = `${timestamp}_cortesia@tixie.com.br`;
+        clientBirthDate = '9999-99-99';
+        
+        // Sempre usar venda online para promotores
+        setTipoVenda("online");
+      } else {
+        // Formata a data de nascimento para o formato correto (YYYY-MM-DD)
+        const [dia, mes, ano] = dataNascimento.split('/');
+        clientBirthDate = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
       }
-
-      if (!validarDataNascimento(dataNascimento)) {
-        toast.error("Data de nascimento inválida. Use o formato DD/MM/AAAA");
-        return;
-      }
-
-      // Se o tipo de venda for online, email é obrigatório
-      if (tipoVenda === "online" && !email) {
-        toast.error("Email é obrigatório para vendas online");
-        return;
-      }
-
-      // Formata a data de nascimento para o formato correto (YYYY-MM-DD)
-      const [dia, mes, ano] = dataNascimento.split('/');
-      const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 
       // Limpa dados de emissão anterior
       localStorage.removeItem("emissaoCompleta");
@@ -504,12 +551,12 @@ export default function PDVPage() {
         eventId: eventoSelecionado,
         ticketId: parseInt(tipoSelecionado),
         quantity: quantidade,
-        clientPhone: telefone.replace(/\D/g, ''),
-        clientDocument: cpf.replace(/\D/g, ''),
+        clientPhone: clientPhone,
+        clientDocument: clientCpf,
         clientDocumentType: 'CPF',
         clientName: nome,
-        clientBirthDate: dataFormatada,
-        clientEmail: email || undefined,
+        clientBirthDate: clientBirthDate,
+        clientEmail: clientEmail,
         saleType: tipoVenda === "local" ? "local" : "online",
         unitPrice: tipoIngresso.preco,
         totalPrice: tipoIngresso.preco * quantidade
@@ -790,21 +837,15 @@ export default function PDVPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Card className="backdrop-blur-xl bg-black/30 border border-white/10 shadow-2xl">
+              <Card className="bg-black/30 backdrop-blur-sm text-white border-white/10 shadow-xl">
                 <CardHeader>
-                  <h1 className="text-2xl font-bold text-center text-white">
-                    Venda de Ingressos
-                  </h1>
+                  <CardTitle className="text-2xl">
+                    {isPromoter ? "Emissão de Cortesia" : "Venda de Ingresso"}
+                  </CardTitle>
                 </CardHeader>
-                <form>
-                  <CardContent className="space-y-6">
-                    {error && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-sm flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                        <p>{error}</p>
-                      </div>
-                    )}
 
+                <form>
+                  <CardContent>
                     <div className="space-y-4">
                       {/* Campo Evento */}
                       <div className="space-y-2">
@@ -858,7 +899,7 @@ export default function PDVPage() {
                         )}
                       </div>
 
-                      {/* Campo Quantidade */}
+                      {/* Campo Quantidade (visível para todos) */}
                       <div className="space-y-2">
                         <Label className="text-gray-200">Quantidade</Label>
                         <div className="flex items-center space-x-2">
@@ -882,126 +923,143 @@ export default function PDVPage() {
                         </div>
                       </div>
 
-                      {/* Campo Telefone */}
-                      <div className="space-y-2">
-                        <Label htmlFor="telefone" className="text-gray-200">Telefone</Label>
-                        <div className="relative rounded-md overflow-hidden border border-white/10">
-                          <PhoneInput
-                            country="br"
-                            value={telefone}
-                            onChange={(value) => setTelefone(value)}
-                            inputProps={{
-                              id: "telefone",
-                              required: true,
-                              className: "w-full !bg-black/30 !border-0 !text-white !h-12 !pl-12"
-                            }}
-                            containerClass="!bg-transparent"
-                            buttonClass="!bg-black/30 !border-0 !border-r !border-white/10"
-                            dropdownClass="!bg-gray-900/90 !border-white/10"
-                            enableSearch={false}
-                            disableSearchIcon={true}
-                            preferredCountries={['br']}
-                            disableCountryCode={false}
-                            countryCodeEditable={false}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Campo CPF */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-200">CPF</Label>
-                        <div className="flex items-center gap-2">
+                      {/* Modo promotor: mostra apenas o campo nome */}
+                      {isPromoter ? (
+                        <div className="space-y-2">
+                          <Label className="text-gray-200">Nome</Label>
                           <Input
                             type="text"
-                            value={cpf}
-                            onChange={(e) => handleCpfChange(e.target.value)}
+                            value={nome}
+                            onChange={(e) => setNome(e.target.value)}
                             className="h-12 bg-black/30 border-white/10 text-white"
-                            placeholder="000.000.000-00"
-                            disabled={loadingCliente}
+                            placeholder="Nome completo"
                           />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={handleRefreshBusca}
-                            disabled={loadingCliente || !cpf}
-                            className="h-12 w-12 bg-black/30 border-white/10 text-white hover:bg-white/10 disabled:opacity-50"
-                          >
-                            <RotateCw className={`h-5 w-5 ${loadingCliente ? 'animate-spin' : ''}`} />
-                          </Button>
                         </div>
-                        {loadingCliente && (
-                          <p className="text-sm text-blue-400">Buscando dados do cliente...</p>
-                        )}
-                        {errorCliente && (
-                          <p className="text-sm text-red-400">{errorCliente}</p>
-                        )}
-                      </div>
-
-                      {/* Campo Nome */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-200">Nome</Label>
-                        <Input
-                          type="text"
-                          value={nome}
-                          onChange={(e) => setNome(e.target.value)}
-                          className="h-12 bg-black/30 border-white/10 text-white"
-                          placeholder="Nome completo"
-                          disabled={loadingCliente}
-                        />
-                      </div>
-
-                      {/* Campo Data de Nascimento */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-200">Data de Nascimento</Label>
-                        <Input
-                          type="text"
-                          value={dataNascimento}
-                          onChange={(e) => {
-                            const valor = formatarDataNascimento(e.target.value);
-                            if (valor.length <= 10) {
-                              setDataNascimento(valor);
-                            }
-                          }}
-                          className="h-12 bg-black/30 border-white/10 text-white"
-                          placeholder="DD/MM/AAAA"
-                          maxLength={10}
-                          disabled={loadingCliente}
-                        />
-                      </div>
-
-                      {/* Campo Email */}
-                      <div className="space-y-2">
-                        <Label className="text-gray-200">Email</Label>
-                        <Input
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="h-12 bg-black/30 border-white/10 text-white"
-                          placeholder="exemplo@email.com"
-                        />
-                      </div>
-
-                      {/* Tipo de Venda */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-black/30 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-medium text-white">Tipo de Venda</h4>
-                            <p className="text-sm text-gray-400">
-                              {tipoVenda === "local" ? "Venda no local do evento" : "Venda online"}
-                            </p>
+                      ) : (
+                        /* Campos para modo normal */
+                        <>
+                          {/* Campo Telefone */}
+                          <div className="space-y-2">
+                            <Label htmlFor="telefone" className="text-gray-200">Telefone</Label>
+                            <div className="relative rounded-md overflow-hidden border border-white/10">
+                              <PhoneInput
+                                country="br"
+                                value={telefone}
+                                onChange={(value) => setTelefone(value)}
+                                inputProps={{
+                                  id: "telefone",
+                                  required: true,
+                                  className: "w-full !bg-black/30 !border-0 !text-white !h-12 !pl-12"
+                                }}
+                                containerClass="!bg-transparent"
+                                buttonClass="!bg-black/30 !border-0 !border-r !border-white/10"
+                                dropdownClass="!bg-gray-900/90 !border-white/10"
+                                enableSearch={false}
+                                disableSearchIcon={true}
+                                preferredCountries={['br']}
+                                disableCountryCode={false}
+                                countryCodeEditable={false}
+                              />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-400">Local</span>
-                            <Switch
-                              checked={tipoVenda === "online"}
-                              onCheckedChange={(checked: boolean) => setTipoVenda(checked ? "online" : "local")}
-                              className="data-[state=checked]:bg-blue-600"
+
+                          {/* Campo CPF */}
+                          <div className="space-y-2">
+                            <Label className="text-gray-200">CPF</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="text"
+                                value={cpf}
+                                onChange={(e) => handleCpfChange(e.target.value)}
+                                className="h-12 bg-black/30 border-white/10 text-white"
+                                placeholder="000.000.000-00"
+                                disabled={loadingCliente}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleRefreshBusca}
+                                disabled={loadingCliente || !cpf}
+                                className="h-12 w-12 bg-black/30 border-white/10 text-white hover:bg-white/10 disabled:opacity-50"
+                              >
+                                <RotateCw className={`h-5 w-5 ${loadingCliente ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                            {loadingCliente && (
+                              <p className="text-sm text-blue-400">Buscando dados do cliente...</p>
+                            )}
+                            {errorCliente && (
+                              <p className="text-sm text-red-400">{errorCliente}</p>
+                            )}
+                          </div>
+
+                          {/* Campo Nome */}
+                          <div className="space-y-2">
+                            <Label className="text-gray-200">Nome</Label>
+                            <Input
+                              type="text"
+                              value={nome}
+                              onChange={(e) => setNome(e.target.value)}
+                              className="h-12 bg-black/30 border-white/10 text-white"
+                              placeholder="Nome completo"
+                              disabled={loadingCliente}
                             />
-                            <span className="text-sm text-gray-400">Online</span>
                           </div>
-                        </div>
-                      </div>
+
+                          {/* Campo Data de Nascimento */}
+                          <div className="space-y-2">
+                            <Label className="text-gray-200">Data de Nascimento</Label>
+                            <Input
+                              type="text"
+                              value={dataNascimento}
+                              onChange={(e) => {
+                                const valor = formatarDataNascimento(e.target.value);
+                                if (valor.length <= 10) {
+                                  setDataNascimento(valor);
+                                }
+                              }}
+                              className="h-12 bg-black/30 border-white/10 text-white"
+                              placeholder="DD/MM/AAAA"
+                              maxLength={10}
+                              disabled={loadingCliente}
+                            />
+                          </div>
+
+                          {/* Campo Email */}
+                          <div className="space-y-2">
+                            <Label className="text-gray-200">Email</Label>
+                            <Input
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              className="h-12 bg-black/30 border-white/10 text-white"
+                              placeholder="exemplo@email.com"
+                            />
+                          </div>
+
+                          {/* Tipo de Venda */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between p-4 bg-black/30 rounded-lg border border-white/10">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-medium text-white">Tipo de Venda</h4>
+                                <p className="text-sm text-gray-400">
+                                  {tipoVenda === "local" ? "Venda no local do evento" : "Venda online"}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-400">Local</span>
+                                <Switch
+                                  checked={tipoVenda === "online"}
+                                  onCheckedChange={(checked: boolean) => setTipoVenda(checked ? "online" : "local")}
+                                  className="data-[state=checked]:bg-blue-600"
+                                />
+                                <span className="text-sm text-gray-400">Online</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </form>
@@ -1039,7 +1097,8 @@ export default function PDVPage() {
                 <Button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={isEmitting || !eventoSelecionado || !tipoSelecionado || !cpf || !nome || !telefone || !dataNascimento || (tipoVenda === "online" && !email)}
+                  disabled={isEmitting || !eventoSelecionado || !tipoSelecionado || 
+                    (isPromoter ? !nome : (!cpf || !nome || !telefone || !dataNascimento || (tipoVenda === "online" && !email)))}
                   className="w-full h-12 mt-6 bg-indigo-600 hover:bg-indigo-700 text-white text-base font-medium transition-all duration-200 shadow-md"
                 >
                   {isEmitting ? (
