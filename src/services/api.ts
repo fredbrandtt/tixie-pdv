@@ -70,7 +70,7 @@ export interface TipoIngresso {
 
 export async function buscarEventos(companyId: number): Promise<Evento[]> {
   try {
-    const response = await fetch('https://n8nwebhook.vcrma.com.br/webhook/e34f276f-9b54-4009-abbe-6289302ad705', {
+    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_EVENTOS || '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ export async function buscarEventos(companyId: number): Promise<Evento[]> {
 
 export async function buscarIngressos(eventId: string, companyId: number): Promise<TipoIngresso[]> {
   try {
-    const response = await fetch('https://n8nwebhook.vcrma.com.br/webhook/d4bfcce3-1d5c-4654-96dc-fd69f00d76a9', {
+    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_INGRESSOS || '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -177,7 +177,7 @@ export async function buscarClientePorCpf(cpf: string, companyId: number): Promi
     // Remove caracteres não numéricos do CPF
     const cpfLimpo = cpf.replace(/\D/g, '');
 
-    const response = await fetch('https://n8nwebhook.vcrma.com.br/webhook/945e47f2-4123-4ee5-8302-fa3a61a6990f', {
+    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_CLIENTE || '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -259,7 +259,7 @@ export async function emitirIngressos(dados: EmissaoIngressoPayload): Promise<In
   try {
     console.log("Enviando dados para emissão:", dados);
 
-    const response = await fetch('https://n8nwebhook.vcrma.com.br/webhook/63bb2af6-af79-4670-9ebd-8c4ff226e865', {
+    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_EMISSAO || '', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
