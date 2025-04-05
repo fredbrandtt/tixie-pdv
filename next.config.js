@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone', // Otimização para Docker
   poweredByHeader: false,
   compress: true,
   eslint: {
