@@ -4,7 +4,6 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
 import { CompanyIdInitializer } from "@/components/CompanyIdInitializer";
-import { CompanyIdDebug } from "@/components/CompanyIdDebug";
 import CompanyIdReloader from "@/components/CompanyIdReloader";
 
 const geistSans = Geist({
@@ -34,7 +33,6 @@ export default function RootLayout({
       >
         <AuthProvider>
           <CompanyIdInitializer />
-          <CompanyIdDebug />
           <CompanyIdReloader />
           {children}
           <Toaster position="top-right" richColors />
