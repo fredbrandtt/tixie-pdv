@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertCircle, RotateCw } from "lucide-react";
+import { AlertCircle, RotateCw, LogOut, User } from "lucide-react";
 import Header from "../../components/Header";
 import NumericKeypad from "../../components/NumericKeypad";
 import {
@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function PDVPage() {
   const router = useRouter();
+  const { user, logout } = useAuth();
   const { isEmitting, setEmitting } = useEmissaoStore();
   const [loading, setLoading] = useState(true);
   const [loadingIngressos, setLoadingIngressos] = useState(false);
@@ -394,6 +395,18 @@ export default function PDVPage() {
     setErrorCliente(null);
   }, []); // Este useEffect só deve rodar uma vez ao montar o componente
 
+  // Função para realizar logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logout realizado com sucesso");
+      router.push("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      toast.error("Erro ao fazer logout");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
@@ -430,356 +443,335 @@ export default function PDVPage() {
   }
 
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-gray-900 to-black"
-      style={{
-        backgroundImage: "url('/images/bg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed",
-      }}
-    >
-      {/* Overlay com gradiente */}
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20 pointer-events-none" />
-      
-      {/* Efeito de brilho */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 animate-pulse" />
-      </div>
-
-      <div className="relative min-h-screen">
-        <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-black/30 border-b border-white/10">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h2 className="text-xl font-medium text-white">
-              Olá, João Silva
-            </h2>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  // Limpa todos os campos
-                  setEventoSelecionado("");
-                  setTipoSelecionado("");
-                  setQuantidade(1);
-                  setCpf("");
-                  setNome("");
-                  setDataNascimento("");
-                  setTelefone("");
-                  setEmail("");
-                  setMostrarEmail(false);
-                  setTipoVenda("local");
-                  
-                  // Limpa os erros
-                  setError(null);
-                  setErrorIngressos(null);
-                  setErrorCliente(null);
-                  
-                  // Limpa o localStorage
-                  localStorage.removeItem("ultimoEventoSelecionado");
-                  localStorage.removeItem("tipoIngressoSelecionado");
-                  localStorage.removeItem("quantidade");
-                  localStorage.removeItem("cpf");
-                  localStorage.removeItem("telefone");
-                  localStorage.removeItem("dadosEmissao");
-                  localStorage.removeItem("emissaoCompleta");
-                  localStorage.removeItem("ingressoEmitido");
-                }}
-                className="text-gray-300 hover:text-white hover:bg-white/10 flex items-center gap-2"
-              >
-                <RotateCw className="w-4 h-4" />
-                Limpar Formulário
-              </Button>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <Header>
+        <div className="flex justify-between items-center w-full">
+          <h1 className="text-xl font-semibold">PDV - Venda de Ingressos</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-800 px-3 py-1.5 rounded-md">
+              <User size={18} className="text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium">{user?.nome || "Usuário"}</span>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogout}
+              className="flex items-center gap-1"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
-        </header>
+        </div>
+      </Header>
+      
+      <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Formulário Principal */}
+          <div className="flex-1">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="backdrop-blur-xl bg-black/30 border border-white/10 shadow-2xl">
+                <CardHeader>
+                  <h1 className="text-2xl font-bold text-center text-white">
+                    Venda de Ingressos
+                  </h1>
+                </CardHeader>
+                <form>
+                  <CardContent className="space-y-6">
+                    {error && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-sm flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <p>{error}</p>
+                      </div>
+                    )}
 
-        <div className="p-4 lg:p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Formulário Principal */}
-              <div className="flex-1">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Card className="backdrop-blur-xl bg-black/30 border border-white/10 shadow-2xl">
-                    <CardHeader>
-                      <h1 className="text-2xl font-bold text-center text-white">
-                        Venda de Ingressos
-                      </h1>
-                    </CardHeader>
-                    <form>
-                      <CardContent className="space-y-6">
-                        {error && (
-                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-sm flex items-start gap-2">
-                            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                            <p>{error}</p>
-                          </div>
+                    <div className="space-y-4">
+                      {/* Campo Evento */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Evento</Label>
+                        <Select value={eventoSelecionado} onValueChange={setEventoSelecionado}>
+                          <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Selecione o evento" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
+                            {eventos.map((evento) => (
+                              <SelectItem
+                                key={evento.id}
+                                value={evento.id}
+                                className="hover:bg-white/10"
+                              >
+                                {evento.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Campo Tipo de Ingresso */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Tipo de Ingresso</Label>
+                        <Select 
+                          value={tipoSelecionado} 
+                          onValueChange={setTipoSelecionado}
+                          disabled={loadingIngressos || !!errorIngressos}
+                        >
+                          <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder={
+                              loadingIngressos 
+                                ? "Carregando ingressos..." 
+                                : errorIngressos 
+                                  ? errorIngressos 
+                                  : "Selecione o tipo"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
+                            {tiposIngresso.map((tipo) => (
+                              <SelectItem
+                                key={tipo.id}
+                                value={tipo.id.toString()}
+                                className="hover:bg-white/10"
+                              >
+                                <div className="flex flex-col">
+                                  <span>{tipo.nome} - R$ {tipo.preco.toFixed(2)}</span>
+                                  {tipo.descricao && (
+                                    <span className="text-sm text-gray-400">{tipo.descricao}</span>
+                                  )}
+                                  {tipo.bundle && (
+                                    <span className="text-sm text-emerald-400">
+                                      {tipo.bundle.quantidade}x ingressos
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errorIngressos && (
+                          <span className="text-sm text-red-400">{errorIngressos}</span>
                         )}
+                      </div>
 
-                        <div className="space-y-4">
-                          {/* Campo Evento */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Evento</Label>
-                            <Select value={eventoSelecionado} onValueChange={setEventoSelecionado}>
-                              <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
-                                <SelectValue placeholder="Selecione o evento" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
-                                {eventos.map((evento) => (
-                                  <SelectItem
-                                    key={evento.id}
-                                    value={evento.id}
-                                    className="hover:bg-white/10"
-                                  >
-                                    {evento.nome}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                      {/* Campo Quantidade */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Quantidade</Label>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => quantidade > 1 && setQuantidade(quantidade - 1)}
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                          >
+                            -
+                          </Button>
+                          <span className="w-12 text-center text-white">{quantidade}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setQuantidade(quantidade + 1)}
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Campo Telefone */}
+                      <div className="space-y-2">
+                        <Label htmlFor="telefone" className="text-sm font-medium text-white">
+                          Telefone
+                        </Label>
+                        <PhoneInput
+                          country="br"
+                          value={telefone}
+                          onChange={(value) => setTelefone(value)}
+                          inputProps={{
+                            id: "telefone",
+                            required: true
+                          }}
+                          enableSearch
+                          searchPlaceholder="Buscar país..."
+                          searchNotFound="País não encontrado"
+                          preferredCountries={['br', 'us', 'pt']}
+                          disableCountryCode={false}
+                          countryCodeEditable={false}
+                        />
+                      </div>
+
+                      {/* Campo CPF */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">CPF</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="text"
+                            value={cpf}
+                            onChange={(e) => handleCpfChange(e.target.value)}
+                            className="h-14 bg-white/10 border-white/20 text-white"
+                            placeholder="000.000.000-00"
+                            disabled={loadingCliente}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleRefreshBusca}
+                            disabled={loadingCliente || !cpf}
+                            className="h-14 w-14 bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-50"
+                          >
+                            <RotateCw className={`h-5 w-5 ${loadingCliente ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                        {loadingCliente && (
+                          <p className="text-sm text-blue-400">Buscando dados do cliente...</p>
+                        )}
+                        {errorCliente && (
+                          <p className="text-sm text-red-400">{errorCliente}</p>
+                        )}
+                      </div>
+
+                      {/* Campo Nome */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Nome</Label>
+                        <Input
+                          type="text"
+                          value={nome}
+                          onChange={(e) => setNome(e.target.value)}
+                          className="h-14 bg-white/10 border-white/20 text-white"
+                          placeholder="Nome completo"
+                          disabled={loadingCliente}
+                        />
+                      </div>
+
+                      {/* Campo Data de Nascimento */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Data de Nascimento</Label>
+                        <Input
+                          type="text"
+                          value={dataNascimento}
+                          onChange={(e) => {
+                            const valor = formatarDataNascimento(e.target.value);
+                            if (valor.length <= 10) {
+                              setDataNascimento(valor);
+                            }
+                          }}
+                          className="h-14 bg-white/10 border-white/20 text-white"
+                          placeholder="DD/MM/AAAA"
+                          maxLength={10}
+                          disabled={loadingCliente}
+                        />
+                      </div>
+
+                      {/* Campo Email */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-200">Email</Label>
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="h-14 bg-white/10 border-white/20 text-white"
+                          placeholder="exemplo@email.com"
+                        />
+                      </div>
+
+                      {/* Tipo de Venda */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-medium text-white">Tipo de Venda</h4>
+                            <p className="text-sm text-gray-400">
+                              {tipoVenda === "local" ? "Venda no local do evento" : "Venda online"}
+                            </p>
                           </div>
-
-                          {/* Campo Tipo de Ingresso */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Tipo de Ingresso</Label>
-                            <Select 
-                              value={tipoSelecionado} 
-                              onValueChange={setTipoSelecionado}
-                              disabled={loadingIngressos || !!errorIngressos}
-                            >
-                              <SelectTrigger className="h-14 bg-white/10 border-white/20 text-white">
-                                <SelectValue placeholder={
-                                  loadingIngressos 
-                                    ? "Carregando ingressos..." 
-                                    : errorIngressos 
-                                      ? errorIngressos 
-                                      : "Selecione o tipo"
-                                } />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10 text-white">
-                                {tiposIngresso.map((tipo) => (
-                                  <SelectItem
-                                    key={tipo.id}
-                                    value={tipo.id.toString()}
-                                    className="hover:bg-white/10"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span>{tipo.nome} - R$ {tipo.preco.toFixed(2)}</span>
-                                      {tipo.descricao && (
-                                        <span className="text-sm text-gray-400">{tipo.descricao}</span>
-                                      )}
-                                      {tipo.bundle && (
-                                        <span className="text-sm text-emerald-400">
-                                          {tipo.bundle.quantidade}x ingressos
-                                        </span>
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {errorIngressos && (
-                              <span className="text-sm text-red-400">{errorIngressos}</span>
-                            )}
-                          </div>
-
-                          {/* Campo Quantidade */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Quantidade</Label>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => quantidade > 1 && setQuantidade(quantidade - 1)}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                -
-                              </Button>
-                              <span className="w-12 text-center text-white">{quantidade}</span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setQuantidade(quantidade + 1)}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                +
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Campo Telefone */}
-                          <div className="space-y-2">
-                            <Label htmlFor="telefone" className="text-sm font-medium text-white">
-                              Telefone
-                            </Label>
-                            <PhoneInput
-                              country="br"
-                              value={telefone}
-                              onChange={(value) => setTelefone(value)}
-                              inputProps={{
-                                id: "telefone",
-                                required: true
-                              }}
-                              enableSearch
-                              searchPlaceholder="Buscar país..."
-                              searchNotFound="País não encontrado"
-                              preferredCountries={['br', 'us', 'pt']}
-                              disableCountryCode={false}
-                              countryCodeEditable={false}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-400">Local</span>
+                            <Switch
+                              checked={tipoVenda === "online"}
+                              onCheckedChange={(checked: boolean) => setTipoVenda(checked ? "online" : "local")}
+                              className="data-[state=checked]:bg-blue-600"
                             />
-                          </div>
-
-                          {/* Campo CPF */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">CPF</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="text"
-                                value={cpf}
-                                onChange={(e) => handleCpfChange(e.target.value)}
-                                className="h-14 bg-white/10 border-white/20 text-white"
-                                placeholder="000.000.000-00"
-                                disabled={loadingCliente}
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={handleRefreshBusca}
-                                disabled={loadingCliente || !cpf}
-                                className="h-14 w-14 bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-50"
-                              >
-                                <RotateCw className={`h-5 w-5 ${loadingCliente ? 'animate-spin' : ''}`} />
-                              </Button>
-                            </div>
-                            {loadingCliente && (
-                              <p className="text-sm text-blue-400">Buscando dados do cliente...</p>
-                            )}
-                            {errorCliente && (
-                              <p className="text-sm text-red-400">{errorCliente}</p>
-                            )}
-                          </div>
-
-                          {/* Campo Nome */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Nome</Label>
-                            <Input
-                              type="text"
-                              value={nome}
-                              onChange={(e) => setNome(e.target.value)}
-                              className="h-14 bg-white/10 border-white/20 text-white"
-                              placeholder="Nome completo"
-                              disabled={loadingCliente}
-                            />
-                          </div>
-
-                          {/* Campo Data de Nascimento */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Data de Nascimento</Label>
-                            <Input
-                              type="text"
-                              value={dataNascimento}
-                              onChange={(e) => {
-                                const valor = formatarDataNascimento(e.target.value);
-                                if (valor.length <= 10) {
-                                  setDataNascimento(valor);
-                                }
-                              }}
-                              className="h-14 bg-white/10 border-white/20 text-white"
-                              placeholder="DD/MM/AAAA"
-                              maxLength={10}
-                              disabled={loadingCliente}
-                            />
-                          </div>
-
-                          {/* Campo Email */}
-                          <div className="space-y-2">
-                            <Label className="text-gray-200">Email</Label>
-                            <Input
-                              type="email"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="h-14 bg-white/10 border-white/20 text-white"
-                              placeholder="exemplo@email.com"
-                            />
-                          </div>
-
-                          {/* Tipo de Venda */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                              <div className="space-y-1">
-                                <h4 className="text-sm font-medium text-white">Tipo de Venda</h4>
-                                <p className="text-sm text-gray-400">
-                                  {tipoVenda === "local" ? "Venda no local do evento" : "Venda online"}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-400">Local</span>
-                                <Switch
-                                  checked={tipoVenda === "online"}
-                                  onCheckedChange={(checked: boolean) => setTipoVenda(checked ? "online" : "local")}
-                                  className="data-[state=checked]:bg-blue-600"
-                                />
-                                <span className="text-sm text-gray-400">Online</span>
-                              </div>
-                            </div>
+                            <span className="text-sm text-gray-400">Online</span>
                           </div>
                         </div>
-                      </CardContent>
-                    </form>
-                  </Card>
-                </motion.div>
-              </div>
-
-              {/* Resumo do Pedido (Fixo) */}
-              <div className="w-full lg:w-[400px]">
-                <div className="lg:sticky lg:top-[88px]">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-6 space-y-4 shadow-2xl"
-                  >
-                    <h3 className="text-xl font-semibold text-white">Resumo do Pedido</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-gray-200">
-                        <span>Valor unitário:</span>
-                        <span className="font-medium">R$ {getPrecoUnitario().toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-200">
-                        <span>Quantidade:</span>
-                        <span className="font-medium">{quantidade}</span>
-                      </div>
-                      <div className="border-t border-white/10 my-2" />
-                      <div className="flex justify-between text-lg font-semibold text-white">
-                        <span>Total:</span>
-                        <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                          R$ {getTotal().toFixed(2)}
-                        </span>
                       </div>
                     </div>
+                  </CardContent>
+                </form>
+              </Card>
+            </motion.div>
+          </div>
 
-                    <Button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={isEmitting || !eventoSelecionado || !tipoSelecionado || !cpf || !nome || !telefone || !dataNascimento || (tipoVenda === "online" && !email)}
-                      className="w-full h-14 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300 shadow-xl shadow-purple-500/20 border border-white/10 mt-4"
-                    >
-                      {isEmitting ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                          <span>Processando...</span>
-                        </div>
-                      ) : (
-                        "Emitir Ingresso"
-                      )}
-                    </Button>
-                  </motion.div>
+          {/* Resumo do Pedido (Fixo) */}
+          <div className="w-full lg:w-[400px]">
+            <div className="lg:sticky lg:top-[88px]">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="backdrop-blur-xl bg-black/30 border border-white/10 rounded-lg p-6 space-y-4 shadow-2xl"
+              >
+                <h3 className="text-xl font-semibold text-white">Resumo do Pedido</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-gray-200">
+                    <span>Valor unitário:</span>
+                    <span className="font-medium">R$ {getPrecoUnitario().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-200">
+                    <span>Quantidade:</span>
+                    <span className="font-medium">{quantidade}</span>
+                  </div>
+                  <div className="border-t border-white/10 my-2" />
+                  <div className="flex justify-between text-lg font-semibold text-white">
+                    <span>Total:</span>
+                    <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      R$ {getTotal().toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isEmitting || !eventoSelecionado || !tipoSelecionado || !cpf || !nome || !telefone || !dataNascimento || (tipoVenda === "online" && !email)}
+                  className="w-full h-14 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300 shadow-xl shadow-purple-500/20 border border-white/10 mt-4"
+                >
+                  {isEmitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Processando...</span>
+                    </div>
+                  ) : (
+                    "Emitir Ingresso"
+                  )}
+                </Button>
+              </motion.div>
             </div>
           </div>
         </div>
+
+        {/* Exibe mensagem se estiver em modo de emissão */}
+        {isEmitting && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <Card className="w-full max-w-md border-none">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  >
+                    <RotateCw className="h-10 w-10 text-blue-500" />
+                  </motion.div>
+                  <h2 className="text-xl font-semibold">Emitindo ingressos...</h2>
+                  <p className="text-center text-gray-500">
+                    Por favor, aguarde enquanto os ingressos estão sendo emitidos.
+                    Não feche ou atualize esta página.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,11 +2,35 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  return res
+  // Obtém o caminho atual
+  const path = req.nextUrl.pathname;
+  
+  // Verifica se existe cookie de autenticação
+  const authCookie = req.cookies.get('sb-access-token') || 
+                     req.cookies.get('sb-refresh-token') ||
+                     req.cookies.get('sb-auth');
+  
+  // Verificação de autenticação extremamente simples baseada apenas na presença de cookies
+  const isAuthenticated = !!authCookie;
+  
+  // Lógica de redirecionamento
+  if (path === '/login' && isAuthenticated) {
+    // Usuário já autenticado tentando acessar login
+    console.log('[Middleware] Usuário autenticado tentando acessar login, redirecionando para /pdv');
+    return NextResponse.redirect(new URL('/pdv', req.url));
+  }
+  
+  if (path.startsWith('/pdv') && !isAuthenticated) {
+    // Usuário não autenticado tentando acessar área restrita
+    console.log('[Middleware] Usuário não autenticado tentando acessar área restrita, redirecionando para /login');
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+  
+  // Permitir acesso a todas as outras rotas
+  return NextResponse.next();
 }
 
 // Configurar quais rotas o middleware deve interceptar
 export const config = {
-  matcher: ['/pdv/:path*', '/login', '/']
+  matcher: ['/pdv/:path*', '/login']
 } 
