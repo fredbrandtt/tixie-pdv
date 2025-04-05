@@ -61,29 +61,52 @@ export default function LoadingPage() {
         }
 
         const dadosEmissao = JSON.parse(dadosEmissaoString);
+        console.log("[Loading] Dados de emissão recuperados:", dadosEmissao);
         
         // Verifica o estado da emissão atual
         const emissaoStatus = localStorage.getItem("emissaoStatus");
-        const currentTransactionId = localStorage.getItem("currentTransactionId");
 
-        // Se não há emissão em andamento ou se é uma nova transação
-        if (!emissaoStatus || currentTransactionId !== dadosEmissao.transactionId) {
-          // Marca que está iniciando uma nova emissão
-          localStorage.setItem("emissaoStatus", "processing");
-          localStorage.setItem("currentTransactionId", dadosEmissao.transactionId);
+        // Se não há emissão em andamento
+        if (!emissaoStatus) {
+          try {
+            // Marca que está iniciando uma nova emissão
+            localStorage.setItem("emissaoStatus", "processing");
 
-          console.log("Iniciando emissão com dados:", dadosEmissao);
-          const ingresso = await emitirIngressos(dadosEmissao);
-          console.log("Resposta da emissão:", ingresso);
-          
-          if (ingresso && ingresso.code) {
-            setIngressoEmitido(ingresso);
-            setStatus("success");
-            localStorage.setItem("emissaoCompleta", "true");
-            localStorage.setItem("ingressoEmitido", JSON.stringify(ingresso));
-            localStorage.setItem("emissaoStatus", "completed");
-          } else {
-            throw new Error("Resposta da emissão inválida");
+            console.log("[Loading] Iniciando emissão com dados:", dadosEmissao);
+            
+            // Tentativa de emissão com timeout
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Timeout de emissão - 60s")), 60000)
+            );
+            
+            const emissaoPromise = emitirIngressos(dadosEmissao);
+            
+            // Usa Promise.race para implementar timeout
+            const ingresso = await Promise.race([emissaoPromise, timeoutPromise]) as any;
+            
+            console.log("[Loading] Resposta da emissão:", ingresso);
+            
+            if (ingresso && ingresso.code) {
+              setIngressoEmitido(ingresso);
+              setStatus("success");
+              localStorage.setItem("emissaoCompleta", "true");
+              localStorage.setItem("ingressoEmitido", JSON.stringify(ingresso));
+              localStorage.setItem("emissaoStatus", "completed");
+            } else {
+              throw new Error("Resposta da emissão inválida ou incompleta");
+            }
+          } catch (emissaoError) {
+            console.error("[Loading] Erro durante a emissão:", emissaoError);
+            
+            // Limpa o status de emissão em caso de erro
+            localStorage.removeItem("emissaoStatus");
+            
+            // Formata o erro para exibição
+            const errorMessage = emissaoError instanceof Error 
+              ? emissaoError.message 
+              : "Erro desconhecido ao emitir ingresso";
+              
+            throw new Error(`Falha na emissão: ${errorMessage}`);
           }
         } else if (emissaoStatus === "completed") {
           // Se a emissão já foi completada, tenta recuperar o resultado
@@ -91,18 +114,65 @@ export default function LoadingPage() {
           if (ingressoSalvo) {
             setIngressoEmitido(JSON.parse(ingressoSalvo));
             setStatus("success");
+          } else {
+            throw new Error("Status de emissão indica sucesso, mas nenhum ingresso foi encontrado");
           }
         } else {
-          console.log("Emissão em andamento, aguardando resposta...");
+          console.log("[Loading] Emissão em andamento, aguardando resposta...");
+          
+          // Verifica quanto tempo a emissão está em processamento
+          const inicioProcesamento = localStorage.getItem("inicioProcessamento");
+          if (!inicioProcesamento) {
+            localStorage.setItem("inicioProcessamento", Date.now().toString());
+          } else {
+            const tempoDecorrido = Date.now() - parseInt(inicioProcesamento);
+            
+            // Se passou mais de 30s, considera como erro
+            if (tempoDecorrido > 30000) {
+              throw new Error("Tempo limite excedido para processamento da emissão");
+            }
+          }
         }
 
       } catch (err) {
-        console.error("Erro ao emitir ingressos:", err);
-        setError(err instanceof Error ? err.message : "Erro ao emitir ingressos");
+        console.error("[Loading] Erro ao emitir ingressos:", err);
+        let mensagemErro = "Erro ao emitir ingressos";
+        
+        if (err instanceof Error) {
+          mensagemErro = err.message;
+          
+          // Verifica se é um erro da API com detalhes em formato JSON
+          if (mensagemErro.includes('{') && mensagemErro.includes('}')) {
+            try {
+              // Tenta extrair o JSON do erro
+              const jsonMatch = mensagemErro.match(/{.*}/);
+              if (jsonMatch) {
+                const jsonError = JSON.parse(jsonMatch[0]);
+                
+                if (jsonError.error) {
+                  mensagemErro = jsonError.error;
+                  
+                  if (jsonError.missingFields) {
+                    mensagemErro += `: Campos ausentes: ${jsonError.missingFields.join(', ')}`;
+                  }
+                  
+                  if (jsonError.details) {
+                    mensagemErro += ` (${jsonError.details})`;
+                  }
+                }
+              }
+            } catch (parseError) {
+              console.error("[Loading] Erro ao tentar parsear detalhe do erro:", parseError);
+            }
+          }
+        }
+        
+        setError(mensagemErro);
         setStatus("error");
+        
         // Limpa o status de emissão em caso de erro
         localStorage.removeItem("emissaoStatus");
-        localStorage.removeItem("currentTransactionId");
+        localStorage.removeItem("inicioProcessamento");
       } finally {
         setEmitting(false);
       }

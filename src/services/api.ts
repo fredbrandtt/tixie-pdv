@@ -70,7 +70,8 @@ export interface TipoIngresso {
 
 export async function buscarEventos(companyId: number): Promise<Evento[]> {
   try {
-    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_EVENTOS || '', {
+    // Usar a rota API local em vez do webhook direto
+    const response = await fetch('/api/eventos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +110,8 @@ export async function buscarEventos(companyId: number): Promise<Evento[]> {
 
 export async function buscarIngressos(eventId: string, companyId: number): Promise<TipoIngresso[]> {
   try {
-    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_INGRESSOS || '', {
+    // Usar a rota API local em vez do webhook direto
+    const response = await fetch('/api/ingressos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -177,7 +179,8 @@ export async function buscarClientePorCpf(cpf: string, companyId: number): Promi
     // Remove caracteres não numéricos do CPF
     const cpfLimpo = cpf.replace(/\D/g, '');
 
-    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_CLIENTE || '', {
+    // Usar a rota API local em vez do webhook direto
+    const response = await fetch('/api/cliente', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,16 +225,18 @@ export async function buscarClientePorCpf(cpf: string, companyId: number): Promi
 
 interface EmissaoIngressoPayload {
   companyId: number;
-  name: string;
   eventId: string;
-  qtd: number;
-  phone: string;
-  birthday: string;
-  email?: string;
-  product_id: number;
-  cpf: string;
-  transactionId: string;
-  sales_channel: "pdv" | "web"; // pdv para venda local, web para venda online
+  ticketId: number;
+  quantity: number;
+  clientPhone: string;
+  clientDocument: string;
+  clientDocumentType: string;
+  clientName: string;
+  clientBirthDate: string;
+  clientEmail?: string;
+  saleType: "local" | "online";
+  unitPrice: number;
+  totalPrice: number;
 }
 
 interface IngressoEmitido {
@@ -259,11 +264,11 @@ export async function emitirIngressos(dados: EmissaoIngressoPayload): Promise<In
   try {
     console.log("Enviando dados para emissão:", dados);
 
-    const response = await fetch(process.env.NEXT_PUBLIC_WEBHOOK_EMISSAO || '', {
+    // Usar a rota API local em vez do webhook direto
+    const response = await fetch('/api/emissao', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Transaction-ID': dados.transactionId
       },
       body: JSON.stringify(dados),
     });

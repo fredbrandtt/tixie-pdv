@@ -295,29 +295,34 @@ export default function PDVPage() {
       localStorage.removeItem("emissaoCompleta");
       localStorage.removeItem("ingressoEmitido");
 
-      // Gera um ID único para a transação
-      const transactionId = Date.now().toString();
+      // Obtém o preço unitário do ingresso
+      const tipoIngresso = tiposIngresso.find(tipo => tipo.id.toString() === tipoSelecionado);
+      if (!tipoIngresso) {
+        toast.error("Tipo de ingresso não encontrado");
+        return;
+      }
 
-      // Prepara os dados para emissão
+      // Prepara os dados para emissão usando os novos nomes de campo
       const dadosEmissao = {
         companyId: 1,
-        name: nome,
         eventId: eventoSelecionado,
-        qtd: quantidade,
-        phone: telefone.replace(/\D/g, ''),
-        birthday: dataFormatada,
-        email: email || undefined,
-        product_id: parseInt(tipoSelecionado),
-        cpf: cpf.replace(/\D/g, ''),
-        transactionId,
-        sales_channel: tipoVenda === "local" ? "pdv" : "web"
+        ticketId: parseInt(tipoSelecionado),
+        quantity: quantidade,
+        clientPhone: telefone.replace(/\D/g, ''),
+        clientDocument: cpf.replace(/\D/g, ''),
+        clientDocumentType: 'CPF',
+        clientName: nome,
+        clientBirthDate: dataFormatada,
+        clientEmail: email || undefined,
+        saleType: tipoVenda === "local" ? "local" : "online",
+        unitPrice: tipoIngresso.preco,
+        totalPrice: tipoIngresso.preco * quantidade
       };
 
       console.log("Dados para emissão:", dadosEmissao);
 
       // Salva os dados no localStorage
       localStorage.setItem("dadosEmissao", JSON.stringify(dadosEmissao));
-      localStorage.setItem("currentTransactionId", transactionId);
 
       // Ativa o estado de emissão global
       setEmitting(true);
