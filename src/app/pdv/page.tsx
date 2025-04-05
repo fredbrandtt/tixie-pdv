@@ -24,6 +24,7 @@ import 'react-phone-input-2/lib/style.css';
 import '@/styles/phone-input.css';
 import { useEmissaoStore } from "@/store/emissaoStore";
 import { toast } from "sonner";
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function PDVPage() {
   const router = useRouter();
@@ -482,13 +483,6 @@ export default function PDVPage() {
               >
                 <RotateCw className="w-4 h-4" />
                 Limpar Formulário
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => router.push("/login")}
-                className="text-gray-300 hover:text-white hover:bg-white/10"
-              >
-                Sair
               </Button>
             </div>
           </div>
